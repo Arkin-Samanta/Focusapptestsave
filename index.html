@@ -1,0 +1,4110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focus App</title>
+<link rel="icon" type="image/png" href="F (2)-modified.png">
+<style>
+/* ---------- LOADING SCREEN ---------- */
+#loadingScreen {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+#loadingScreen.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.loading-content h1 {
+  margin: 0;
+  font-size: 100px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.loading-content span {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Spinner */
+.spinner {
+  margin: 28px auto 0;
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+:root{
+  --glass-bg: rgba(20,20,30,0.45);
+  --blur: blur(18px);
+  --accent:#7c5cff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro",sans-serif;
+}
+
+/* Base */
+*{box-sizing:border-box;font-family:var(--font);}
+body{
+  margin:0;height:100vh;overflow:hidden;color:white;
+  background:url("https://images.unsplash.com/photo-1506905925346-21bda4d32df4") center/cover no-repeat;
+}
+
+/* Glass effect */
+.glass{
+  background:var(--glass-bg);
+  backdrop-filter:var(--blur);
+  -webkit-backdrop-filter:var(--blur);
+  border-radius:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+  overflow:hidden;
+}
+
+/* Windows */
+.window{
+  position:absolute;
+  display:none;
+  padding:14px;
+  min-width: 200px;
+  min-height: 150px;
+}
+.window.active {
+  z-index: 100;
+}
+
+/* Window header */
+.window-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  cursor: move;
+}
+
+body.hide-headers .window-header {
+  display: none;
+}
+
+body.hide-headers .window {
+  padding: 0;
+}
+
+body.hide-headers .window > div:not(.window-header),
+body.hide-headers .window > input,
+body.hide-headers .window > ul,
+body.hide-headers .window > table {
+  padding: 14px;
+}
+
+.window-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.window-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.window-btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.window-btn:hover {
+  opacity: 0.7;
+}
+
+.window-btn.close {
+  background: #ff5f57;
+}
+
+.window-btn.maximize {
+  background: #28ca42;
+}
+
+/* Pop animation */
+.pop{animation:pop .25s ease-out;}
+@keyframes pop{
+  from{opacity:0;transform:scale(.96) translateY(6px);}
+  to{opacity:1;transform:scale(1) translateY(0);}
+}
+
+/* Inputs */
+input,select,textarea{
+  width:100%;
+  padding:8px;
+  border:none;
+  border-radius:12px;
+  background:rgba(255,255,255,.08);
+  color:white;
+  outline: none;
+  transition: background 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  background: rgba(255,255,255,.12);
+}
+
+button{
+  background:var(--accent);
+  border:none;
+  border-radius:12px;
+  padding:8px 12px;
+  color:white;
+  cursor:pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+button:hover{opacity:.85}
+button:active{transform: scale(0.98)}
+
+/* Taskbar */
+#taskbar{
+  position:absolute;bottom:20px;left:50%;
+  transform:translateX(-50%);
+  display:flex;gap:10px;
+  padding:10px 14px;
+  transition:bottom .3s, top .3s, left .3s, right .3s;
+  z-index: 1000;
+}
+
+.task-btn{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  font-size:18px;
+  cursor:pointer;
+  border-radius: 14px;
+  transition:
+    transform 0.25s cubic-bezier(.25,.8,.25,1),
+    margin 0.25s cubic-bezier(.25,.8,.25,1),
+    background 0.2s;
+}
+
+.task-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: white;
+  transition: fill 0.2s;
+}
+
+.task-btn:hover{
+  transform: scale(1.35) translateY(-8px);
+  margin: 0 6px;
+  background:rgba(255,255,255,.08);
+}
+
+.task-btn:hover + .task-btn,
+.task-btn:has(+ .task-btn:hover){
+  transform: scale(1.15) translateY(-4px);
+}
+
+/* Resize zones */
+.resize{position:absolute;z-index:10}
+.resize.n{top:-4px;left:0;right:0;height:8px;cursor:n-resize}
+.resize.s{bottom:-4px;left:0;right:0;height:8px;cursor:s-resize}
+.resize.e{right:-4px;top:0;bottom:0;width:8px;cursor:e-resize}
+.resize.w{left:-4px;top:0;bottom:0;width:8px;cursor:w-resize}
+.resize.ne{top:-4px;right:-4px;width:12px;height:12px;cursor:ne-resize}
+.resize.nw{top:-4px;left:-4px;width:12px;height:12px;cursor:nw-resize}
+.resize.se{bottom:-4px;right:-4px;width:12px;height:12px;cursor:se-resize}
+.resize.sw{bottom:-4px;left:-4px;width:12px;height:12px;cursor:sw-resize}
+
+/* Clock */
+#clockWin{width:360px;height:220px;top:60px;left:60px}
+#clockTime{font-size:72px;font-weight:600;margin:0}
+#clockDate{opacity:.8;margin:8px 0 0 0}
+#clockSeconds{font-size:24px;opacity:.6;margin:4px 0 0 0}
+#clockContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+/* Focus Widget */
+#focusWin {
+  width: 240px;
+  top: 80px;
+  left: 440px;
+}
+
+#focusContent {
+  text-align: center;
+}
+
+#focusTime {
+  font-size: 48px;
+  font-weight: 600;
+  margin: 20px 0;
+}
+
+.focus-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.focus-buttons button {
+  flex: 1;
+  font-size: 13px;
+}
+
+#focusSettingsBtn {
+  background: rgba(255,255,255,0.08);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+#focusSettingsBtn svg {
+  width: 18px;
+  height: 18px;
+  fill: white;
+}
+
+#focusSettingsOverlay {
+  display: none;
+  margin-top: 12px;
+  background: rgba(0,0,0,0.3);
+  padding: 12px;
+  border-radius: 12px;
+}
+
+#focusSettingsOverlay label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+#focusTimeInput {
+  width: 80px;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+/* Stopwatch */
+#swWin {
+  width: 240px;
+  top: 120px;
+  left: 700px;
+}
+
+#swContent {
+  text-align: center;
+}
+
+#swTime {
+  font-size: 42px;
+  font-weight: 600;
+  margin: 20px 0;
+}
+
+.sw-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.sw-buttons button {
+  flex: 1;
+  font-size: 12px;
+}
+
+/* Background Selector */
+#bgWin {
+  top: 60px;
+  right: 60px;
+  width: 340px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.bgPreview{
+  width:100px;
+  height:60px;
+  margin:6px;
+  border-radius:12px;
+  background-size:cover;
+  background-position:center;
+  cursor:pointer;
+  display:inline-block;
+  border: 2px solid transparent;
+  transition: border 0.2s, transform 0.2s;
+}
+
+.bgPreview:hover {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+/* Settings Window */
+#settingsWin {
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.settings-content {
+  padding: 4px;
+}
+
+/* Account Profile Section */
+.account-profile {
+  background: linear-gradient(135deg, var(--accent) 0%, rgba(124, 92, 255, 0.6) 100%);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.account-profile::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-20px, -20px); }
+}
+
+.profile-picture-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-picture {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  border: 3px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-picture:hover {
+  transform: scale(1.05);
+  border-color: rgba(255,255,255,0.6);
+}
+
+.profile-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-picture-upload {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 24px;
+}
+
+.profile-picture:hover .profile-picture-upload {
+  opacity: 1;
+}
+
+.profile-info {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.profile-username {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.profile-status {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 0;
+  color: rgba(255,255,255,0.9);
+}
+
+.profile-edit-btn {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.profile-edit-btn:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateY(-2px);
+}
+
+/* Account Settings Modal */
+.account-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(10px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  animation: fadeIn 0.3s ease;
+}
+
+.account-modal.active {
+  display: flex;
+}
+
+.account-modal-content {
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur);
+  border-radius: 20px;
+  padding: 30px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  position: relative;
+}
+
+.account-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.account-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.account-modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,95,87,0.2);
+  border: none;
+  color: #ff5f57;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.account-modal-close:hover {
+  background: #ff5f57;
+  color: white;
+  transform: scale(1.1);
+}
+
+.account-form-group {
+  margin-bottom: 20px;
+}
+
+.account-form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.account-form-group input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: white;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.account-form-group input:focus {
+  border-color: var(--accent);
+  background: rgba(255,255,255,0.1);
+}
+
+.account-save-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.account-save-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.login-section {
+  text-align: center;
+}
+
+.login-section p {
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+
+.setting-section {
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.setting-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-section h3 svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--accent);
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.setting-row:last-child {
+  margin-bottom: 0;
+}
+
+.setting-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.setting-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-control input[type="color"],
+.setting-control input[type="number"],
+.setting-control select {
+  width: auto;
+  min-width: 100px;
+}
+
+.setting-control input[type="range"] {
+  width: 150px;
+}
+
+.setting-control input[type="checkbox"] {
+  width: auto;
+  height: 20px;
+  cursor: pointer;
+}
+
+.range-value {
+  font-size: 12px;
+  opacity: 0.7;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* More Widgets */
+#moreWidgets {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.widget-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.widget-card {
+  aspect-ratio: 1;
+  background: rgba(255,255,255,.05);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.2s;
+  padding: 12px;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.widget-card:hover {
+  background: rgba(255,255,255,.1);
+  border-color: var(--accent);
+  transform: translateY(-4px);
+}
+
+.widget-card:active {
+  cursor: grabbing;
+}
+
+.widget-card svg {
+  width: 40px;
+  height: 40px;
+  fill: var(--accent);
+  margin-bottom: 8px;
+}
+
+.widget-card span {
+  font-size: 13px;
+}
+
+.widget-preview {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 8px;
+  text-align: center;
+}
+
+.widget-card:hover .widget-preview {
+  opacity: 1;
+}
+
+/* Dragging state */
+.widget-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+/* Todo */
+#todoWin {
+  top: 160px;
+  left: 160px;
+  width: 280px;
+}
+
+#todoList {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#todoList li {
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  word-wrap: break-word;
+}
+
+#todoList li:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* Calendar */
+#calWin {
+  top: 200px;
+  left: 200px;
+  width: 240px;
+}
+
+/* Table */
+#tableWin {
+  top: 240px;
+  left: 240px;
+  width: 300px;
+}
+
+#tbl {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+#tbl td {
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+}
+
+/* iFrame Widgets */
+.iframeWin {
+  width: 420px;
+  height: 320px;
+}
+
+#spotifyWin { top: 100px; left: 420px; }
+#ytWin { top: 140px; left: 460px; }
+#slidesWin { top: 180px; left: 500px; }
+#classroomWin { top: 220px; left: 540px; }
+
+/* Image Viewer */
+#imageWin {
+  top: 260px;
+  left: 580px;
+  width: 320px;
+  height: 280px;
+}
+
+#imgDisplay {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.2);
+  margin-top: 8px;
+}
+
+/* YouTube Player */
+#ytPlayerWin {
+  top: 300px;
+  right: 100px;
+  width: 420px;
+  height: 360px;
+}
+
+.yt-container {
+  width: 100%;
+  height: 240px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+}
+
+#ytPlayerIframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#ytPlayerInput {
+  margin-top: 12px;
+}
+
+.yt-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.yt-buttons button {
+  flex: 1;
+  font-size: 13px;
+}
+
+/* MP4 Player */
+#mp4Win {
+  top: 180px;
+  right: 200px;
+  width: 420px;
+  height: 380px;
+}
+
+#mp4Video {
+  width: 100%;
+  height: 240px;
+  border-radius: 16px;
+  object-fit: cover;
+  background: #000;
+}
+
+.video-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.video-controls button {
+  background: rgba(255,255,255,0.1);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+#playPauseBtn {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+#playPauseBtn svg {
+  width: 20px;
+  height: 20px;
+  fill: white;
+}
+
+.video-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.video-bottom select {
+  width: auto;
+  min-width: 80px;
+}
+
+.video-bottom button {
+  background: rgba(255,255,255,0.1);
+  padding: 8px;
+}
+
+/* Text Writer */
+#textWin {
+  top: 300px;
+  left: 620px;
+  width: 340px;
+  height: 280px;
+}
+
+#typingToolbar {
+  display: flex;
+  background: rgba(20,20,30,0.45);
+  backdrop-filter: blur(18px);
+  border-radius: 12px;
+  padding: 6px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#typingToolbar select,
+#typingToolbar button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 12px;
+}
+
+#typingToolbar button {
+  width: 32px;
+  padding: 6px;
+  font-weight: 600;
+}
+
+#typingToolbar button:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+#typingToolbar button.active {
+  background: var(--accent);
+}
+
+#textArea {
+  height: 180px;
+  resize: vertical;
+  font-family: monospace;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* AI Assistant */
+#aiAssistant {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  display: none;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+#aiAssistant.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Glowing border effect */
+body.ai-active::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  border: 3px solid var(--accent);
+  border-radius: 20px;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 
+    0 0 20px var(--accent),
+    inset 0 0 20px var(--accent),
+    0 0 40px var(--accent),
+    inset 0 0 40px var(--accent);
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.ai-orb {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  backdrop-filter: var(--blur);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30px;
+  box-shadow: 
+    0 0 30px rgba(102, 126, 234, 0.6),
+    0 0 60px rgba(118, 75, 162, 0.4),
+    inset 0 0 20px rgba(255,255,255,0.1);
+  animation: pulse 2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-orb::before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 25px solid transparent;
+  border-right: 25px solid transparent;
+  border-bottom: 43px solid white;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.ai-chat-container {
+  width: 90%;
+  max-width: 700px;
+  background: transparent;
+  backdrop-filter: none;
+  border-radius: 20px;
+  padding: 20px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-close-btn {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur);
+  border: 2px solid rgba(255, 95, 87, 0.5);
+  color: #ff5f57;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 5px 15px rgba(255, 95, 87, 0.4);
+  transition: all 0.2s;
+}
+
+.ai-close-btn:hover {
+  transform: scale(1.1);
+  background: #ff5f57;
+  color: white;
+  box-shadow: 0 8px 20px rgba(255, 95, 87, 0.6);
+}
+
+.ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  padding: 10px;
+  max-height: 400px;
+}
+
+.ai-message {
+  margin-bottom: 15px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  animation: slideIn 0.3s ease;
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.ai-message.user {
+  background: linear-gradient(135deg, var(--accent) 0%, rgba(124, 92, 255, 0.8) 100%);
+  margin-left: auto;
+  margin-right: 0;
+  max-width: 80%;
+  text-align: right;
+}
+
+.ai-message.assistant {
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur);
+  margin-right: auto;
+  margin-left: 0;
+  max-width: 80%;
+}
+
+.ai-input-container {
+  display: flex;
+  gap: 10px;
+}
+
+.ai-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  color: white;
+  outline: none;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.ai-input:focus {
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur);
+  border-color: var(--accent);
+  box-shadow: 0 4px 20px rgba(124, 92, 255, 0.4);
+}
+
+.ai-send-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--accent) 0%, rgba(124, 92, 255, 0.8) 100%);
+  backdrop-filter: var(--blur);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(124, 92, 255, 0.4);
+}
+
+.ai-send-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(124, 92, 255, 0.6);
+}
+
+.ai-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-typing {
+  display: none;
+  padding: 12px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  max-width: 80%;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.ai-typing.active {
+  display: block;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.typing-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  opacity: 0.6;
+  animation: typingDot 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-10px); }
+}
+
+/* ---------- CALCULATOR ---------- */
+#calcWin { top:200px; left:60px; width:260px; }
+.calc-display { background:rgba(255,255,255,0.06); border-radius:12px; padding:14px 16px; margin-top:4px; margin-bottom:10px; text-align:right; min-height:56px; display:flex; flex-direction:column; justify-content:flex-end; }
+.calc-expr { font-size:12px; opacity:0.4; min-height:16px; word-break:break-all; }
+.calc-result { font-size:30px; font-weight:600; word-break:break-all; }
+.calc-buttons { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.calc-btn { background:rgba(255,255,255,0.07); border:none; border-radius:10px; color:#fff; font-size:18px; padding:11px 0; cursor:pointer; transition:background 0.15s, transform 0.1s; }
+.calc-btn:hover { background:rgba(255,255,255,0.14); }
+.calc-btn:active { transform:scale(0.93); }
+.calc-btn.op { background:rgba(124,92,255,0.22); }
+.calc-btn.op:hover { background:rgba(124,92,255,0.38); }
+.calc-btn.eq { background:var(--accent); }
+.calc-btn.eq:hover { opacity:0.85; }
+.calc-btn.clear { color:#ff5f57; }
+
+/* ---------- HABIT TRACKER ---------- */
+#habitWin { top:60px; left:440px; width:260px; }
+.habit-list { display:flex; flex-direction:column; gap:5px; margin-top:8px; max-height:220px; overflow-y:auto; }
+.habit-row { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); border-radius:10px; padding:8px 10px; transition:background 0.2s; }
+.habit-row:hover { background:rgba(255,255,255,0.09); }
+.habit-check { width:20px; height:20px; border-radius:6px; border:2px solid rgba(255,255,255,0.25); background:transparent; cursor:pointer; flex-shrink:0; transition:all 0.2s; display:flex; align-items:center; justify-content:center; }
+.habit-check.done { background:var(--accent); border-color:var(--accent); }
+.habit-check.done::after { content:'✓'; font-size:12px; color:#fff; font-weight:700; }
+.habit-label { flex:1; font-size:13px; opacity:0.85; transition:opacity 0.2s; }
+.habit-label.done { opacity:0.35; text-decoration:line-through; }
+.habit-del { background:none; border:none; color:rgba(255,255,255,0.2); cursor:pointer; font-size:18px; padding:0 4px; border-radius:6px; transition:color 0.2s, background 0.2s; line-height:1; }
+.habit-del:hover { color:#ff5f57; background:rgba(255,95,87,0.12); opacity:1; }
+.habit-input-row { display:flex; gap:6px; margin-top:8px; }
+.habit-input-row input { flex:1; }
+.habit-input-row button { width:34px; padding:0; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1; }
+
+/* ---------- UNIT CONVERTER ---------- */
+#unitWin { top:60px; left:720px; width:260px; }
+.unit-section { margin-top:10px; }
+.unit-section label { display:block; font-size:11px; opacity:0.45; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.5px; }
+.unit-swap-btn { background:rgba(255,255,255,0.07); border:none; color:#fff; width:30px; height:30px; border-radius:8px; cursor:pointer; margin:6px auto; display:block; font-size:16px; transition:background 0.2s, transform 0.3s; }
+.unit-swap-btn:hover { background:rgba(255,255,255,0.15); transform:rotate(180deg); }
+
+/* ---------- QUICK NOTES ---------- */
+#notesWin { top:320px; left:60px; width:240px; }
+.note-list { display:flex; flex-direction:column; gap:6px; margin-top:6px; max-height:220px; overflow-y:auto; }
+.note-card { background:rgba(255,255,255,0.05); border-radius:10px; padding:10px; position:relative; transition:background 0.2s; }
+.note-card:hover { background:rgba(255,255,255,0.08); }
+.note-card textarea { width:100%; background:transparent; border:none; color:#fff; resize:none; font-size:13px; outline:none; min-height:40px; max-height:100px; font-family:inherit; }
+.note-card textarea::placeholder { color:rgba(255,255,255,0.25); }
+.note-del { position:absolute; top:5px; right:5px; background:none; border:none; color:rgba(255,255,255,0.2); cursor:pointer; font-size:15px; padding:2px 5px; border-radius:5px; transition:color 0.2s, background 0.2s; line-height:1; }
+.note-del:hover { color:#ff5f57; background:rgba(255,95,87,0.12); opacity:1; }
+.note-add-btn { background:rgba(255,255,255,0.06); border:none; color:rgba(255,255,255,0.5); width:100%; padding:7px; border-radius:8px; cursor:pointer; font-size:18px; transition:background 0.2s, color 0.2s; margin-top:4px; }
+.note-add-btn:hover { background:rgba(255,255,255,0.12); color:#fff; }
+
+/* ---------- POMODORO RING on Focus ---------- */
+.focus-ring-wrap { position:relative; width:110px; height:110px; margin:8px auto 2px; }
+.focus-ring-svg { width:110px; height:110px; transform:rotate(-90deg); }
+.focus-ring-bg { fill:none; stroke:rgba(255,255,255,0.1); stroke-width:7; }
+.focus-ring-prog { fill:none; stroke:var(--accent); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset 0.6s linear; }
+.focus-ring-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.focus-ring-text span { font-size:24px; font-weight:600; }
+#focusTime { font-size:24px; font-weight:600; margin:0; }
+
+/* ---------- KEYBOARD SHORTCUTS OVERLAY ---------- */
+#shortcutsOverlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); display:none; z-index:10003; align-items:center; justify-content:center; }
+#shortcutsOverlay.active { display:flex; }
+.shortcuts-panel { background:var(--glass-bg); backdrop-filter:var(--blur); border-radius:18px; padding:24px 28px; max-width:380px; width:90%; box-shadow:0 16px 50px rgba(0,0,0,0.4); }
+.shortcuts-panel h2 { margin:0 0 16px; font-size:18px; font-weight:600; }
+.shortcut-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+.shortcut-row:last-child { border:none; }
+.shortcut-desc { font-size:13px; opacity:0.8; }
+.shortcut-keys { display:flex; gap:4px; }
+.kbd { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.14); border-radius:5px; padding:2px 7px; font-size:11px; font-family:monospace; min-width:24px; text-align:center; }
+
+/* ---------- TASKBAR TOOLTIPS ---------- */
+.task-btn { position:relative; }
+.task-btn .tip { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:rgba(20,20,30,0.88); backdrop-filter:blur(8px); color:#fff; font-size:11px; padding:4px 10px; border-radius:6px; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity 0.18s; z-index:9999; }
+.task-btn:hover .tip { opacity:1; }
+
+/* ---------- NOTIFICATION TOAST ---------- */
+.toast { position:fixed; top:24px; right:24px; background:var(--glass-bg); backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur); color:#fff; padding:14px 22px; border-radius:12px; box-shadow:0 8px 28px rgba(0,0,0,0.3); z-index:10005; font-size:14px; animation:toastIn 0.28s cubic-bezier(.25,.8,.25,1); pointer-events:none; border:1px solid rgba(255,255,255,0.08); }
+@keyframes toastIn { from { opacity:0; transform:translateY(-12px) translateX(12px); } to { opacity:1; transform:translateY(0) translateX(0); } }
+.toast.out { animation:toastOut 0.22s ease forwards; }
+@keyframes toastOut { to { opacity:0; transform:translateY(-8px); } }
+
+/* ---------- SHOW DESKTOP BUTTON (bottom-right corner) ---------- */
+#showDesktopBtn {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 6px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 1001;
+  padding: 0;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+#showDesktopBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.2s ease, width 0.2s ease;
+}
+
+#showDesktopBtn:hover {
+  width: 18px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#showDesktopBtn:hover::before {
+  background: rgba(255, 255, 255, 0.6);
+  width: 2px;
+}
+
+#showDesktopBtn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Tooltip for show desktop */
+#showDesktopBtn .sd-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: rgba(20,20,30,0.88);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s;
+  z-index: 9999;
+}
+
+#showDesktopBtn:hover .sd-tip {
+  opacity: 1;
+}
+
+/* ---------- CODE RUNNER STYLING ---------- */
+#codeOutput {
+  line-height: 1.5;
+}
+
+#codeOutput iframe {
+  border-radius: 8px;
+}
+
+#codeInput {
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+/* Success/Error messages in code output */
+#codeOutput span[style*="color:#ff5f57"] {
+  display: block;
+  padding: 10px;
+  background: rgba(255, 95, 87, 0.1);
+  border-left: 3px solid #ff5f57;
+  border-radius: 4px;
+}
+
+/* ---------- WEATHER WIDGET STYLING ---------- */
+#weatherDisplay h2 {
+  background: linear-gradient(135deg, var(--accent) 0%, rgba(124, 92, 255, 0.6) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loadingScreen">
+  <div class="loading-content">
+    <h1>Focus</h1>
+    <span>Nameless Tech</span>
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- CLOCK -->
+<div id="clockWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Clock</div>
+    <div class="window-controls">
+      <div class="window-btn maximize" onclick="maximizeWindow('clockWin')"></div>
+      <div class="window-btn close" onclick="closeWindow('clockWin')"></div>
+    </div>
+  </div>
+  <div id="clockContent">
+    <div id="clockTime">00:00</div>
+    <div id="clockSeconds"></div>
+    <div id="clockDate"></div>
+  </div>
+</div>
+
+<!-- FOCUS WIDGET -->
+<div id="focusWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Focus Timer</div>
+    <div class="window-controls">
+      <div class="window-btn maximize" onclick="maximizeWindow('focusWin')"></div>
+      <div class="window-btn close" onclick="closeWindow('focusWin')"></div>
+    </div>
+  </div>
+  <div id="focusContent">
+    <div class="focus-ring-wrap">
+      <svg class="focus-ring-svg" viewBox="0 0 110 110">
+        <circle class="focus-ring-bg" cx="55" cy="55" r="48"/>
+        <circle class="focus-ring-prog" id="focusRingProg" cx="55" cy="55" r="48" stroke-dasharray="301.6" stroke-dashoffset="0"/>
+      </svg>
+      <div class="focus-ring-text"><span id="focusTime">25:00</span></div>
+    </div>
+    <div class="focus-buttons">
+      <button onclick="startFocus()">Start</button>
+      <button onclick="pauseFocus()">Pause</button>
+      <button onclick="resetFocus()">Reset</button>
+    </div>
+    <button id="focusSettingsBtn" onclick="toggleFocusSettings()">
+      <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+    </button>
+    <div id="focusSettingsOverlay">
+      <label>Set Time (minutes): 
+        <input type="number" id="focusTimeInput" min="1" max="180" value="25">
+      </label>
+      <button onclick="updateFocusTime()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Alarm Sound -->
+<audio id="focusAlarm" src="https://www.soundjay.com/button/sounds/beep-07.mp3" preload="auto"></audio>
+
+<!-- STOPWATCH -->
+<div id="swWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Stopwatch</div>
+    <div class="window-controls">
+      <div class="window-btn maximize" onclick="maximizeWindow('swWin')"></div>
+      <div class="window-btn close" onclick="closeWindow('swWin')"></div>
+    </div>
+  </div>
+  <div id="swContent">
+    <div id="swTime">00:00.0</div>
+    <div class="sw-buttons">
+      <button id="swStartBtn" onclick="swStart()">Start</button>
+      <button id="swPauseBtn" onclick="swPause()" style="display:none;">Pause</button>
+      <button onclick="swReset()">Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Background Selector -->
+<div id="bgWin" class="glass window" style="height:520px;width:340px;">
+  <div class="window-header">
+    <div class="window-title">Backgrounds</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('bgWin')"></div>
+    </div>
+  </div>
+  <div id="bgContainer" style="padding:10px;overflow-y:auto;height:calc(100% - 50px);"></div>
+</div>
+
+<!-- Settings Window -->
+<div id="settingsWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Settings</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('settingsWin')"></div>
+    </div>
+  </div>
+  <div class="settings-content">
+    
+    <!-- Account Profile Section -->
+    <div class="account-profile" id="accountProfile">
+      <div class="profile-picture-container">
+        <div class="profile-picture" id="profilePicture" onclick="openAccountModal()">
+          <span id="profileIcon">👤</span>
+          <input type="file" id="profilePictureInput" accept="image/*" style="display:none;" onchange="uploadProfilePicture(event)">
+          <div class="profile-picture-upload" onclick="event.stopPropagation(); document.getElementById('profilePictureInput').click()">
+            📷
+          </div>
+        </div>
+      </div>
+      <div class="profile-info">
+        <h2 class="profile-username" id="profileUsername">Guest User</h2>
+        <p class="profile-status" id="profileStatus">Not logged in</p>
+        <button class="profile-edit-btn" onclick="openAccountModal()">
+          <span id="accountBtnText">Login / Sign Up</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Appearance -->
+    <div class="setting-section">
+      <h3>
+        <svg viewBox="0 0 24 24"><path d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36c-0.98,1.37-2.58,2.26-4.4,2.26 c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg>
+        Appearance
+      </h3>
+      <div class="setting-row">
+        <div class="setting-label">Accent Color</div>
+        <div class="setting-control">
+          <input type="color" id="accentInput" value="#7c5cff">
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Font Size</div>
+        <div class="setting-control">
+          <input type="number" min="12" max="48" value="16" id="fontSizeInput">
+          <span class="range-value">px</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Theme</div>
+        <div class="setting-control">
+          <select id="themeSelect">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="setting-section">
+      <h3>
+        <svg viewBox="0 0 24 24"><path d="M3,13h2v-2H3V13z M3,17h2v-2H3V17z M3,9h2V7H3V9z M7,13h14v-2H7V13z M7,17h14v-2H7V17z M7,7v2h14V7H7z"/></svg>
+        Taskbar
+      </h3>
+      <div class="setting-row">
+        <div class="setting-label">Auto-hide</div>
+        <div class="setting-control">
+          <input type="checkbox" id="autoHideCheck">
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Icon Size</div>
+        <div class="setting-control">
+          <input type="number" min="24" max="64" value="42" id="iconSizeInput">
+          <span class="range-value">px</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Position</div>
+        <div class="setting-control">
+          <select id="taskbarPos">
+            <option value="bottom" selected>Bottom</option>
+            <option value="top">Top</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Windows -->
+    <div class="setting-section">
+      <h3>
+        <svg viewBox="0 0 24 24"><path d="M3,3v8h8V3H3z M9,9H5V5h4V9z M3,13v8h8v-8H3z M9,19H5v-4h4V19z M13,3v8h8V3H13z M19,9h-4V5h4V9z M13,13v8h8v-8H13z M19,19h-4v-4h4V19z"/></svg>
+        Windows
+      </h3>
+      <div class="setting-row">
+        <div class="setting-label">Show Clock</div>
+        <div class="setting-control">
+          <input type="checkbox" id="showClock" checked>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Show Focus Timer</div>
+        <div class="setting-control">
+          <input type="checkbox" id="showFocus" checked>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Show Stopwatch</div>
+        <div class="setting-control">
+          <input type="checkbox" id="showStopwatch" checked>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Hide Widget Headers</div>
+        <div class="setting-control">
+          <input type="checkbox" id="hideHeaders">
+        </div>
+      </div>
+    </div>
+
+    <!-- System -->
+    <div class="setting-section">
+      <h3>
+        <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+        System
+      </h3>
+      <div class="setting-row">
+        <div class="setting-label">Blur</div>
+        <div class="setting-control">
+          <input type="range" min="0" max="30" value="18" step="1" id="blurRange">
+          <span class="range-value" id="blurValue">18px</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Background Opacity</div>
+        <div class="setting-control">
+          <input type="range" min="0.1" max="1" step="0.05" value="0.45" id="bgOpacityRange">
+          <span class="range-value" id="opacityValue">0.45</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- More Widgets -->
+<div id="moreWidgets" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Widget Store</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('moreWidgets')"></div>
+    </div>
+  </div>
+  <div class="widget-container">
+    <div class="widget-card" draggable="true" data-widget="todoWin">
+      <svg viewBox="0 0 24 24"><path d="M19,3H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V5C21,3.9,20.1,3,19,3z M10,17l-5-5l1.41-1.41L10,14.17 l7.59-7.59L19,8L10,17z"/></svg>
+      <span>Todo</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="calWin">
+      <svg viewBox="0 0 24 24"><path d="M19,3h-1V1h-2v2H8V1H6v2H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V5C21,3.9,20.1,3,19,3z M19,19H5V9h14 V19z M7,11h2v2H7V11z M11,11h2v2h-2V11z M15,11h2v2h-2V11z"/></svg>
+      <span>Calendar</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="tableWin">
+      <svg viewBox="0 0 24 24"><path d="M10,10.02h5V21h-5V10.02z M17,21h3c1.1,0,2-0.9,2-2v-9h-5V21z M3,19c0,1.1,0.9,2,2,2h3V10H3V19z M3,5v3h18V5 c0-1.1-0.9-2-2-2H5C3.9,3,3,3.9,3,5z"/></svg>
+      <span>Table</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="spotifyWin">
+      <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M9.5,16.5c-0.83,0-1.5-0.67-1.5-1.5s0.67-1.5,1.5-1.5 s1.5,0.67,1.5,1.5S10.33,16.5,9.5,16.5z M12,13c-0.55,0-1-0.45-1-1s0.45-1,1-1s1,0.45,1,1S12.55,13,12,13z M14.5,16.5 c-0.83,0-1.5-0.67-1.5-1.5s0.67-1.5,1.5-1.5s1.5,0.67,1.5,1.5S15.33,16.5,14.5,16.5z"/></svg>
+      <span>Spotify</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="ytWin">
+      <svg viewBox="0 0 24 24"><path d="M10,16.5l6-4.5l-6-4.5V16.5z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8 s3.59-8,8-8s8,3.59,8,8S16.41,20,12,20z"/></svg>
+      <span>YouTube</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="slidesWin">
+      <svg viewBox="0 0 24 24"><path d="M19,3H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14c1.1,0,2-0.9,2-2V5C21,3.9,20.1,3,19,3z M19,19H5V7h14V19z M7,10h2v7H7V10z M11,10h2v7h-2V10z M15,10h2v7h-2V10z"/></svg>
+      <span>Slides</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="classroomWin">
+      <svg viewBox="0 0 24 24"><path d="M12,3L1,9l4,2.18v6L12,21l7-3.82v-6l2-1.09V17h2V9L12,3z M18.82,9L12,12.72L5.18,9L12,5.28L18.82,9z M17,15.99l-5,2.73 l-5-2.73v-3.72L12,15l5-2.73V15.99z"/></svg>
+      <span>Classroom</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="imageWin">
+      <svg viewBox="0 0 24 24"><path d="M21,19V5c0-1.1-0.9-2-2-2H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14C20.1,21,21,20.1,21,19z M8.5,13.5l2.5,3.01L14.5,12 l4.5,6H5L8.5,13.5z"/></svg>
+      <span>Image</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="textWin">
+      <svg viewBox="0 0 24 24"><path d="M14,2H6C4.9,2,4,2.9,4,4v16c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2V8L14,2z M16,18H8v-2h8V18z M16,14H8v-2h8V14z M13,9V3.5 L18.5,9H13z"/></svg>
+      <span>Text</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="mp4Win">
+      <svg viewBox="0 0 24 24"><path d="M17,10.5V7c0-0.55-0.45-1-1-1H4C3.45,6,3,6.45,3,7v10c0,0.55,0.45,1,1,1h12c0.55,0,1-0.45,1-1v-3.5l4,4v-11L17,10.5z"/></svg>
+      <span>MP4</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="ytPlayerWin">
+      <svg viewBox="0 0 24 24"><path d="M21,3H3C1.9,3,1,3.9,1,5v14c0,1.1,0.9,2,2,2h18c1.1,0,2-0.9,2-2V5C23,3.9,22.1,3,21,3z M10,15V9l6,3L10,15z"/></svg>
+      <span>YT Player</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="calcWin">
+      <svg viewBox="0 0 24 24"><path d="M19,3H5c-1.1,0-2,.9-2,2v14c0,1.1.9,2,2,2h14c1.1,0,2-.9,2-2V5c0-1.1-.9-2-2-2zM7,17H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5V7h2v2zm4,8H9v-2h2v2zm0-4H9v-2h2v2zm0-4H9V7h2v2zm4,8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm2,8h-2v-6h2v6z"/></svg>
+      <span>Calculator</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="habitWin">
+      <svg viewBox="0 0 24 24"><path d="M19,3H5c-1.1,0-2,.9-2,2v14c0,1.1.9,2,2,2h14c1.1,0,2-.9,2-2V5c0-1.1-.9-2-2-2zm-9,14l-5-5,1.41-1.41L10,14.17l7.59-7.59L19,8l-9,9z"/></svg>
+      <span>Habits</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="unitWin">
+      <svg viewBox="0 0 24 24"><path d="M8,6v2h8.59L2,23.59,3.41,25,19,9.41V18h2V6z"/></svg>
+      <span>Converter</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="notesWin">
+      <svg viewBox="0 0 24 24"><path d="M20,2H4c-1.1,0-2,.9-2,2v18l4-4h14c1.1,0,2-.9,2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <span>Notes</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="weatherWin">
+      <svg viewBox="0 0 24 24"><path d="M6.76,4.84l-1.8-1.79-1.41,1.41,1.79,1.79L6.76,4.84z M1,10.5h3v2H1V10.5z M11,0.55h2V3.5h-2V0.55z M19.04,2.46l1.408,1.41 l-1.79,1.79l-1.41-1.41L19.04,2.46z M17.24,18.16l1.79,1.8l1.41-1.41l-1.8-1.79L17.24,18.16z M20,10.5h3v2h-3V10.5z M12,5.5 c-3.31,0-6,2.69-6,6s2.69,6,6,6s6-2.69,6-6S15.31,5.5,12,5.5z M11,22.45h2V19.5h-2V22.45z M3.55,18.54l1.41,1.41l1.79-1.8 l-1.41-1.41L3.55,18.54z"/></svg>
+      <span>Weather</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+    <div class="widget-card" draggable="true" data-widget="codeWin">
+      <svg viewBox="0 0 24 24"><path d="M9.4,16.6L4.8,12l4.6-4.6L8,6l-6,6l6,6L9.4,16.6z M14.6,16.6l4.6-4.6l-4.6-4.6L16,6l6,6l-6,6L14.6,16.6z"/></svg>
+      <span>Code Runner</span>
+      <div class="widget-preview">Drag to desktop to add</div>
+    </div>
+  </div>
+</div>
+
+<!-- Todo -->
+<div id="todoWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Todo List</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('todoWin')"></div>
+    </div>
+  </div>
+  <input id="todoInput" placeholder="Add new task...">
+  <ul id="todoList"></ul>
+</div>
+
+<!-- Calendar -->
+<div id="calWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Calendar</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('calWin')"></div>
+    </div>
+  </div>
+  <input type="date">
+</div>
+
+<!-- Table -->
+<div id="tableWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Table</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('tableWin')"></div>
+    </div>
+  </div>
+  <table id="tbl">
+    <tr><td>A</td><td>B</td></tr>
+    <tr><td>1</td><td>2</td></tr>
+  </table>
+</div>
+
+<!-- iFrame Widgets -->
+<div id="spotifyWin" class="glass window iframeWin">
+  <div class="window-header">
+    <div class="window-title">Spotify</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('spotifyWin')"></div>
+    </div>
+  </div>
+  <div style="width:100%;height:calc(100% - 40px);">
+    <iframe src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style="width:100%;height:100%;border:none;border-radius:0 0 18px 18px;"></iframe>
+  </div>
+</div>
+<div id="ytWin" class="glass window iframeWin">
+  <div class="window-header">
+    <div class="window-title">YouTube</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('ytWin')"></div>
+    </div>
+  </div>
+  <div style="width:100%;height:calc(100% - 40px);">
+    <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" allowfullscreen style="width:100%;height:100%;border:none;border-radius:0 0 18px 18px;"></iframe>
+  </div>
+</div>
+<div id="slidesWin" class="glass window iframeWin">
+  <div class="window-header">
+    <div class="window-title">Google Slides</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('slidesWin')"></div>
+    </div>
+  </div>
+  <div style="width:100%;height:calc(100% - 40px);">
+    <iframe src="https://docs.google.com/presentation/d/e/2PACX-1vQrfJvSample/embed" style="width:100%;height:100%;border:none;border-radius:0 0 18px 18px;"></iframe>
+  </div>
+</div>
+<div id="classroomWin" class="glass window iframeWin">
+  <div class="window-header">
+    <div class="window-title">Google Classroom</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('classroomWin')"></div>
+    </div>
+  </div>
+  <div style="width:100%;height:calc(100% - 40px);">
+    <iframe src="https://classroom.google.com" style="width:100%;height:100%;border:none;border-radius:0 0 18px 18px;"></iframe>
+  </div>
+</div>
+
+<!-- Image Viewer -->
+<div id="imageWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Image Viewer</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('imageWin')"></div>
+    </div>
+  </div>
+  <input type="file" id="imgInput" accept="image/*">
+  <img id="imgDisplay" alt="No image selected">
+</div>
+
+<!-- YouTube Player Widget -->
+<div id="ytPlayerWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">YouTube Player</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('ytPlayerWin')"></div>
+    </div>
+  </div>
+  <div class="yt-container">
+    <iframe id="ytPlayerIframe" allowfullscreen src=""></iframe>
+  </div>
+  <input type="text" id="ytPlayerInput" placeholder="Paste YouTube link here">
+  <div class="yt-buttons">
+    <button onclick="loadYTVideo()">Load Video</button>
+    <button onclick="fullscreenYT()">Fullscreen</button>
+  </div>
+</div>
+
+<!-- MP4 Player -->
+<div id="mp4Win" class="glass window">
+  <div class="window-header">
+    <div class="window-title">MP4 Player</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('mp4Win')"></div>
+    </div>
+  </div>
+  <video id="mp4Video" src="" controlslist="nodownload"></video>
+  <div class="video-controls">
+    <button onclick="skipVideo(-5)">
+      <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:white"><path d="M11,18V6l-8.5,6L11,18z M11.5,12l8.5,6V6L11.5,12z"/></svg>
+    </button>
+    <button id="playPauseBtn" onclick="togglePlay()">
+      <svg id="playIcon" viewBox="0 0 24 24"><path d="M8,5v14l11-7L8,5z"/></svg>
+    </button>
+    <button onclick="skipVideo(5)">
+      <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:white"><path d="M4,18l8.5-6L4,6V18z M13,6v12l8.5-6L13,6z"/></svg>
+    </button>
+  </div>
+  <div class="video-bottom">
+    <select onchange="setSpeed(this.value)">
+      <option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option>
+      <option value="1.5">1.5×</option>
+      <option value="2">2×</option>
+    </select>
+    <button onclick="fullscreenVideo()">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:white"><path d="M7,14H5v5h5v-2H7V14z M5,10h2V7h3V5H5V10z M17,17h-3v2h5v-5h-2V17z M14,5v2h3v3h2V5H14z"/></svg>
+    </button>
+  </div>
+  <input type="file" accept="video/mp4" onchange="loadVideo(this)">
+</div>
+
+<!-- Text Writer Widget -->
+<div id="textWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Text Writer</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('textWin')"></div>
+    </div>
+  </div>
+  <div id="typingToolbar">
+    <select id="fontSizeSelect">
+      <option value="14">14px</option>
+      <option value="16" selected>16px</option>
+      <option value="18">18px</option>
+      <option value="20">20px</option>
+      <option value="24">24px</option>
+    </select>
+    <button id="boldBtn" class="bold">B</button>
+    <button id="italicBtn" class="italic">I</button>
+  </div>
+  <textarea id="textArea" placeholder="Start writing..."></textarea>
+</div>
+
+<!-- Account Settings Modal -->
+<div id="accountModal" class="account-modal">
+  <div class="account-modal-content">
+    <div class="account-modal-header">
+      <h2 id="accountModalTitle">Account Settings</h2>
+      <button class="account-modal-close" onclick="closeAccountModal()">✕</button>
+    </div>
+    
+    <!-- Login/Signup Form -->
+    <div id="loginForm">
+      <div class="account-form-group">
+        <label>Username</label>
+        <input type="text" id="usernameInput" placeholder="Enter username">
+      </div>
+      <div class="account-form-group">
+        <label>Password</label>
+        <input type="password" id="passwordInput" placeholder="Enter password">
+      </div>
+      <button class="account-save-btn" onclick="loginAccount()">Login / Sign Up</button>
+    </div>
+    
+    <!-- Edit Form (shown when logged in) -->
+    <div id="editForm" style="display:none;">
+      <div class="account-form-group">
+        <label>Username</label>
+        <input type="text" id="editUsernameInput" placeholder="Enter new username">
+      </div>
+      <div class="account-form-group">
+        <label>New Password (leave blank to keep current)</label>
+        <input type="password" id="editPasswordInput" placeholder="Enter new password">
+      </div>
+      <button class="account-save-btn" onclick="updateAccount()" style="margin-bottom:10px;">Save Changes</button>
+      <button class="account-save-btn" onclick="logoutAccount()" style="background:#ff5f57;">Logout</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CALCULATOR -->
+<div id="calcWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Calculator</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('calcWin')"></div>
+    </div>
+  </div>
+  <div class="calc-display">
+    <div class="calc-expr" id="calcExpr"></div>
+    <div class="calc-result" id="calcResult">0</div>
+  </div>
+  <div class="calc-buttons">
+    <button class="calc-btn clear" onclick="calcClear()">C</button>
+    <button class="calc-btn op" onclick="calcSign()">±</button>
+    <button class="calc-btn op" onclick="calcPercent()">%</button>
+    <button class="calc-btn op" onclick="calcPress('/')">÷</button>
+    <button class="calc-btn" onclick="calcPress('7')">7</button>
+    <button class="calc-btn" onclick="calcPress('8')">8</button>
+    <button class="calc-btn" onclick="calcPress('9')">9</button>
+    <button class="calc-btn op" onclick="calcPress('*')">×</button>
+    <button class="calc-btn" onclick="calcPress('4')">4</button>
+    <button class="calc-btn" onclick="calcPress('5')">5</button>
+    <button class="calc-btn" onclick="calcPress('6')">6</button>
+    <button class="calc-btn op" onclick="calcPress('-')">−</button>
+    <button class="calc-btn" onclick="calcPress('1')">1</button>
+    <button class="calc-btn" onclick="calcPress('2')">2</button>
+    <button class="calc-btn" onclick="calcPress('3')">3</button>
+    <button class="calc-btn op" onclick="calcPress('+')">+</button>
+    <button class="calc-btn" style="grid-column:span 2" onclick="calcPress('0')">0</button>
+    <button class="calc-btn" onclick="calcDot()">.</button>
+    <button class="calc-btn eq" onclick="calcEquals()">=</button>
+  </div>
+</div>
+
+<!-- HABIT TRACKER -->
+<div id="habitWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Habits</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('habitWin')"></div>
+    </div>
+  </div>
+  <div class="habit-list" id="habitList"></div>
+  <div class="habit-input-row">
+    <input type="text" id="habitInput" placeholder="New habit…" onkeydown="if(event.key==='Enter')addHabit()">
+    <button onclick="addHabit()">+</button>
+  </div>
+</div>
+
+<!-- UNIT CONVERTER -->
+<div id="unitWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Converter</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('unitWin')"></div>
+    </div>
+  </div>
+  <div class="unit-section">
+    <label>Category</label>
+    <select id="unitCat" onchange="unitCatChange()">
+      <option value="length">Length</option>
+      <option value="weight">Weight</option>
+      <option value="temp">Temperature</option>
+      <option value="speed">Speed</option>
+    </select>
+  </div>
+  <div class="unit-section">
+    <label>From</label>
+    <select id="unitFrom" onchange="unitConvert()"></select>
+    <input type="number" id="unitValFrom" placeholder="0" oninput="unitConvert()" style="margin-top:4px;">
+  </div>
+  <button class="unit-swap-btn" onclick="unitSwap()">⇅</button>
+  <div class="unit-section">
+    <label>To</label>
+    <select id="unitTo" onchange="unitConvert()"></select>
+    <input type="number" id="unitValTo" placeholder="0" readonly style="margin-top:4px;">
+  </div>
+</div>
+
+<!-- QUICK NOTES -->
+<div id="notesWin" class="glass window">
+  <div class="window-header">
+    <div class="window-title">Notes</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('notesWin')"></div>
+    </div>
+  </div>
+  <div class="note-list" id="noteList"></div>
+  <button class="note-add-btn" onclick="addNote()">+</button>
+</div>
+
+<!-- WEATHER WIDGET -->
+<div id="weatherWin" class="glass window" style="top:100px;right:300px;width:320px;">
+  <div class="window-header">
+    <div class="window-title">Weather</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('weatherWin')"></div>
+    </div>
+  </div>
+  <div style="padding:10px;">
+    <input type="text" id="weatherCity" placeholder="Enter city name..." style="margin-bottom:10px;">
+    <button onclick="fetchWeather()" style="width:100%;margin-bottom:15px;">Get Weather</button>
+    <div id="weatherDisplay" style="text-align:center;min-height:200px;">
+      <p style="opacity:0.6;margin-top:40px;">Enter a city to see the weather</p>
+    </div>
+  </div>
+</div>
+
+<!-- CODE RUNNER WIDGET -->
+<div id="codeWin" class="glass window" style="top:140px;right:340px;width:500px;height:450px;">
+  <div class="window-header">
+    <div class="window-title">Code Runner</div>
+    <div class="window-controls">
+      <div class="window-btn close" onclick="closeWindow('codeWin')"></div>
+    </div>
+  </div>
+  <div style="padding:10px;display:flex;flex-direction:column;height:calc(100% - 50px);">
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <select id="codeLang" style="width:120px;">
+        <option value="javascript">JavaScript</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS Preview</option>
+      </select>
+      <button onclick="runCode()" style="flex:1;">▶ Run Code</button>
+      <button onclick="clearCode()" style="width:80px;background:rgba(255,95,87,0.3);">Clear</button>
+    </div>
+    <textarea id="codeInput" placeholder="Write your code here..." style="flex:1;font-family:monospace;resize:none;margin-bottom:10px;"></textarea>
+    <div style="font-size:12px;opacity:0.7;margin-bottom:8px;">Output:</div>
+    <div id="codeOutput" style="flex:1;background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;overflow-y:auto;font-family:monospace;font-size:13px;white-space:pre-wrap;"></div>
+  </div>
+</div>
+
+<!-- KEYBOARD SHORTCUTS OVERLAY -->
+<div id="shortcutsOverlay" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="shortcuts-panel">
+    <h2>Keyboard Shortcuts</h2>
+    <div class="shortcut-row"><span class="shortcut-desc">Open AI Assistant</span><div class="shortcut-keys"><span class="kbd">G</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Close overlay / AI</span><div class="shortcut-keys"><span class="kbd">Esc</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Show this menu</span><div class="shortcut-keys"><span class="kbd">?</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Close all windows</span><div class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">X</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Toggle Clock</span><div class="shortcut-keys"><span class="kbd">1</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Toggle Focus Timer</span><div class="shortcut-keys"><span class="kbd">2</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Toggle Stopwatch</span><div class="shortcut-keys"><span class="kbd">3</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Toggle Calculator</span><div class="shortcut-keys"><span class="kbd">4</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Toggle Weather</span><div class="shortcut-keys"><span class="kbd">5</span></div></div>
+    <div class="shortcut-row"><span class="shortcut-desc">Toggle Code Runner</span><div class="shortcut-keys"><span class="kbd">6</span></div></div>
+  </div>
+</div>
+
+<!-- AI Assistant -->
+<div id="aiAssistant">
+  <button class="ai-close-btn" onclick="closeAI()">✕</button>
+  
+  <div class="ai-orb"></div>
+  
+  <div class="ai-chat-container">
+    <div class="ai-messages" id="aiMessages">
+      <div class="ai-message assistant">
+        Hi! I'm your AI assistant powered by Sambanova AI. I can help you with questions, control widgets, fetch weather, generate tables, write & run code, change settings, and more! Try asking me something like "weather in Paris" or "write fibonacci code"!
+      </div>
+    </div>
+    
+    <div class="ai-typing" id="aiTyping">
+      <div class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+    
+    <div class="ai-input-container">
+      <input 
+        type="text" 
+        class="ai-input" 
+        id="aiInput" 
+        placeholder="Ask me anything..."
+        onkeypress="if(event.key==='Enter') sendAIMessage()"
+      >
+      <button class="ai-send-btn" onclick="sendAIMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Taskbar (AI and Calculator buttons removed) -->
+<div id="taskbar" class="glass">
+  <div class="task-btn" onclick="toggle('clockWin')"><span class="tip">Clock</span>
+    <svg viewBox="0 0 24 24"><path d="M11.99,2C6.47,2,2,6.48,2,12s4.47,10,9.99,10C17.52,22,22,17.52,22,12S17.52,2,11.99,2z M12,20c-4.42,0-8-3.58-8-8s3.58-8,8-8s8,3.58,8,8S16.42,20,12,20z M12.5,7H11v6l5.25,3.15l0.75-1.23l-4.5-2.67V7z"/></svg>
+  </div>
+  <div class="task-btn" onclick="toggle('focusWin')"><span class="tip">Focus Timer</span>
+    <svg viewBox="0 0 24 24"><path d="M6,2v6h0.01L6,8.01L10,12l-4,4l0.01,0.01H6V22h12v-5.99h-0.01L18,16l-4-4l4-3.99l-0.01-0.01H18V2H6z"/></svg>
+  </div>
+  <div class="task-btn" onclick="toggle('swWin')"><span class="tip">Stopwatch</span>
+    <svg viewBox="0 0 24 24"><path d="M15,1H9v2h6V1z M11,14h2V8h-2V14z M19.03,7.39l1.42-1.42c-0.43-0.51-0.9-0.99-1.41-1.41l-1.42,1.42C16.07,4.74,14.12,4,12,4c-4.97,0-9,4.03-9,9s4.02,9,9,9s9-4.03,9-9C21,10.88,20.26,8.93,19.03,7.39z M12,20c-3.87,0-7-3.13-7-7s3.13-7,7-7s7,3.13,7,7S15.87,20,12,20z"/></svg>
+  </div>
+  <div class="task-btn" onclick="toggle('moreWidgets')"><span class="tip">Widgets</span>
+    <svg viewBox="0 0 24 24"><path d="M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6V13z"/></svg>
+  </div>
+  <div class="task-btn" onclick="toggle('bgWin')"><span class="tip">Backgrounds</span>
+    <svg viewBox="0 0 24 24"><path d="M21,19V5c0-1.1-0.9-2-2-2H5C3.9,3,3,3.9,3,5v14c0,1.1,0.9,2,2,2h14C20.1,21,21,20.1,21,19z M8.5,13.5l2.5,3.01L14.5,12l4.5,6H5L8.5,13.5z"/></svg>
+  </div>
+  <div class="task-btn" onclick="toggle('settingsWin')"><span class="tip">Settings</span>
+    <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+  </div>
+</div>
+
+<!-- Show Desktop Button (Windows 11 style, bottom-right corner) -->
+<button id="showDesktopBtn" onclick="closeAllWindows()">
+  <span class="sd-tip">Close All</span>
+</button>
+
+<script>
+// ========== SAMBANOVA AI CONFIGURATION ==========
+// 🔑 REPLACE YOUR API KEY HERE:
+const SAMBANOVA_API_KEY = '71e25746-f834-4195-a988-bb7847356d63';
+// Get your API key from: https://cloud.sambanova.ai/
+
+console.log('🚀 Focus App AI System Initialized');
+console.log('📡 API Key:', SAMBANOVA_API_KEY ? '✅ Set (length: ' + SAMBANOVA_API_KEY.length + ')' : '❌ Missing');
+console.log('🌐 Will attempt to connect to Sambanova AI');
+console.log('💡 Fallback offline AI available if connection fails');
+console.log('');
+
+// Multiple endpoint options to try
+const API_ENDPOINTS = [
+  'https://api.sambanova.ai/v1/chat/completions',
+  'https://fast-api.snova.ai/v1/chat/completions',
+  'https://api.snova.ai/v1/chat/completions'
+];
+
+let currentEndpointIndex = 0;
+
+// Conversation history for AI
+let aiConversationHistory = [
+  {
+    role: 'system',
+    content: `You are a helpful AI assistant integrated into a Focus productivity app. You can help users with questions, provide information, assist with tasks, and control widgets in the app.
+
+CAPABILITIES:
+- Control widgets: When users ask to open widgets, respond naturally and mention that you've opened the widget for them
+- Generate tables: When asked to create a table, format it with markdown table syntax (| Header | Header |). The app will automatically populate the table widget
+- Write code: When asked to write code, wrap it in code blocks with language (e.g., \`\`\`javascript\ncode here\n\`\`\`). The code runner will execute it automatically
+- Fetch weather: When asked about weather in a city, mention you're fetching it. The app will use the weather API
+- Change settings: When asked to change theme/colors, confirm the change. The app will apply it automatically
+
+Available widgets: Clock, Focus Timer, Stopwatch, Calculator, Habits tracker, Notes, Todo list, Calendar, Table, Weather, Code Runner, and more.
+
+Be concise but friendly. Focus on productivity and helping users accomplish their goals.`
+  }
+];
+
+// Fallback AI for when API is unavailable
+function getSmartAIResponse(message) {
+  const lower = message.toLowerCase();
+  
+  // === Time & Date Queries ===
+  if (/(what.*time|current time|time now|tell.*time)/i.test(lower)) {
+    const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `The current time is ${time}.`;
+  }
+  
+  if (/(what.*date|current date|today.*date|what.*today|what day)/i.test(lower)) {
+    const date = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    return `Today is ${date}.`;
+  }
+  
+  // === Math Calculations ===
+  const mathMatch = message.match(/(?:what is|calculate|compute|solve)?\s*([0-9+\-*/(). ]+)\s*(?:=|\?)?/i);
+  if (mathMatch && /[\d+\-*/()]/.test(mathMatch[1])) {
+    try {
+      const expr = mathMatch[1].trim();
+      const sanitized = expr.replace(/[^0-9+\-*/().\s]/g, '');
+      const result = Function('"use strict"; return (' + sanitized + ')')();
+      return `${expr} = ${result}`;
+    } catch {
+      // Continue to other patterns
+    }
+  }
+  
+  // === Widget Control ===
+  if (/(open|show|launch|display)/i.test(lower)) {
+    const widgets = ['clock', 'timer', 'focus', 'stopwatch', 'todo', 'calendar', 'calculator', 'habits', 'notes'];
+    const found = widgets.find(w => lower.includes(w));
+    if (found) return `I've opened the ${found} widget for you!`;
+  }
+  
+  if (/(close|hide)/i.test(lower)) {
+    if (/all|everything/.test(lower)) return "I've closed all windows for you!";
+    const widgets = ['clock', 'timer', 'focus', 'stopwatch', 'todo', 'calendar', 'calculator', 'habits', 'notes'];
+    const found = widgets.find(w => lower.includes(w));
+    if (found) return `I've closed the ${found} widget.`;
+  }
+  
+  // === Greetings ===
+  if (/(^|\s)(hello|hi|hey|greetings|good morning|good afternoon|good evening)($|\s|!|\?)/i.test(lower)) {
+    const greetings = [
+      "Hello! How can I help you today?",
+      "Hi there! What would you like to do?",
+      "Hey! I'm here to assist you.",
+      "Greetings! What can I help you with?"
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
+  }
+  
+  // === Help & Capabilities ===
+  if (/(help|what can you do|capabilities|commands|how do)/i.test(lower)) {
+    return "I can help you with:\n\n• Opening widgets (try 'open calculator' or 'show todo list')\n• Telling time and date ('what time is it?')\n• Math calculations ('what is 25 * 4?')\n• Fetching weather ('weather in Tokyo')\n• Creating tables ('make a product table')\n• Writing & running code ('write fibonacci code')\n• Changing settings ('switch to dark theme', 'change color to blue')\n• Controlling the app ('close all windows')\n• Answering questions about productivity\n\nJust ask me naturally!";
+  }
+  
+  // === Thanks ===
+  if (/(thank|thanks|appreciate)/i.test(lower)) {
+    return "You're welcome! Let me know if you need anything else!";
+  }
+  
+  // === Productivity Advice ===
+  if (/(focus|concentrate|productive|distract)/i.test(lower)) {
+    const tips = [
+      "Try the Pomodoro Technique: Work for 25 minutes, then take a 5-minute break. Use the Focus Timer to help!",
+      "Start by breaking your task into smaller chunks. Add them to your Todo list and tackle them one at a time.",
+      "Remove distractions: close unnecessary apps, put your phone away, and use the Focus Timer to stay on track.",
+      "The best way to stay focused is to have a clear goal. What's the one thing you want to accomplish right now?"
+    ];
+    return tips[Math.floor(Math.random() * tips.length)];
+  }
+  
+  // === Habits ===
+  if (/(habit|routine|daily)/i.test(lower)) {
+    return "Building good habits is all about consistency! Use the Habits widget to track your daily routines. Start small - even 5 minutes a day adds up over time.";
+  }
+  
+  // === Time Management ===
+  if (/(time management|organize|plan|schedule)/i.test(lower)) {
+    return "Good time management starts with planning! Try this:\n1. Write down your tasks in the Todo list\n2. Prioritize the most important ones\n3. Use the Focus Timer for deep work\n4. Track your progress with the Habits widget";
+  }
+  
+  // === Motivation ===
+  if (/(motivat|inspire|tired|lazy|procrastinat)/i.test(lower)) {
+    const quotes = [
+      "Remember: progress over perfection. Just start with one small task!",
+      "You don't have to be great to start, but you have to start to be great. Let's begin!",
+      "The hardest part is starting. Once you begin, momentum will carry you forward.",
+      "Break it down into tiny steps. What's one thing you can do right now?"
+    ];
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  }
+  
+  // === App Features ===
+  if (/(how do|how to|how can|show me how)/i.test(lower)) {
+    if (/widget/i.test(lower)) {
+      return "To add widgets, click the '+' icon in the taskbar at the bottom. You can also drag widgets from the Widget Store directly onto your desktop!";
+    }
+    if (/background/i.test(lower)) {
+      return "Click the image icon in the taskbar to open the Background selector. Choose from 20 beautiful backgrounds!";
+    }
+    if (/timer|focus/i.test(lower)) {
+      return "The Focus Timer uses the Pomodoro Technique. Click 'Start' to begin a 25-minute focus session. You can adjust the time in settings (gear icon on the timer).";
+    }
+    if (/code|program|run/i.test(lower)) {
+      return "The Code Runner lets you write and execute JavaScript, HTML, and CSS! Just open it (press 6 or say 'open code runner'), write your code, and click 'Run'. I can also write code for you - just ask!";
+    }
+    if (/weather/i.test(lower)) {
+      return "To check weather, open the weather widget (press 5 or say 'open weather') and enter a city name. Or just ask me 'weather in [city]' and I'll fetch it for you!";
+    }
+  }
+  
+  // === Weather (can't provide real data) ===
+  if (/(weather|temperature|forecast)/i.test(lower)) {
+    const cityMatch = lower.match(/(?:in|for|at)\s+([a-z\s]+?)(?:\?|$|,|\.)/i);
+    if (cityMatch) {
+      return `I'll fetch the current weather for ${cityMatch[1].trim()}. Opening the weather widget now!`;
+    }
+    return "I can show you the weather! Just tell me which city you'd like to check. For example: 'weather in London' or 'show me weather for Tokyo'.";
+  }
+  
+  // === Table Generation ===
+  if (/(create|make|generate|build).*table/i.test(lower)) {
+    // Generate a sample table based on context
+    let tableContent = '';
+    
+    if (/product|item|inventory/i.test(lower)) {
+      tableContent = "I'll create a product table for you:\n\n| Product | Price | Stock |\n|---------|-------|-------|\n| Laptop | $999 | 15 |\n| Mouse | $25 | 50 |\n| Keyboard | $75 | 30 |";
+    } else if (/student|grade|score/i.test(lower)) {
+      tableContent = "I'll create a student grades table:\n\n| Student | Math | Science | English |\n|---------|------|---------|----------|\n| Alice | 95 | 88 | 92 |\n| Bob | 87 | 91 | 85 |\n| Charlie | 92 | 89 | 94 |";
+    } else if (/(task|project|schedule)/i.test(lower)) {
+      tableContent = "I'll create a task schedule table:\n\n| Task | Priority | Status |\n|------|----------|--------|\n| Design UI | High | In Progress |\n| Write Code | High | Not Started |\n| Testing | Medium | Not Started |";
+    } else {
+      tableContent = "I'll create a sample table for you:\n\n| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Data A | Data B | Data C |\n| Data D | Data E | Data F |\n| Data G | Data H | Data I |";
+    }
+    
+    return tableContent + "\n\nOpening the table widget to display this!";
+  }
+  
+  // === Code Generation ===
+  if (/(write|create|make|generate|show).*(code|program|script)/i.test(lower)) {
+    let codeResponse = '';
+    
+    if (/fibonacci/i.test(lower)) {
+      codeResponse = "Here's a Fibonacci sequence generator:\n\n```javascript\nfunction fibonacci(n) {\n  const fib = [0, 1];\n  for (let i = 2; i < n; i++) {\n    fib[i] = fib[i-1] + fib[i-2];\n  }\n  return fib;\n}\n\nconsole.log(fibonacci(10));\n```";
+    } else if (/(prime|number)/i.test(lower)) {
+      codeResponse = "Here's a prime number checker:\n\n```javascript\nfunction isPrime(num) {\n  if (num <= 1) return false;\n  for (let i = 2; i <= Math.sqrt(num); i++) {\n    if (num % i === 0) return false;\n  }\n  return true;\n}\n\nconsole.log(isPrime(17)); // true\nconsole.log(isPrime(12)); // false\n```";
+    } else if (/(sort|array)/i.test(lower)) {
+      codeResponse = "Here's an array sorting example:\n\n```javascript\nconst numbers = [64, 34, 25, 12, 22, 11, 90];\n\n// Bubble Sort\nfunction bubbleSort(arr) {\n  const n = arr.length;\n  for (let i = 0; i < n; i++) {\n    for (let j = 0; j < n - i - 1; j++) {\n      if (arr[j] > arr[j + 1]) {\n        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];\n      }\n    }\n  }\n  return arr;\n}\n\nconsole.log(bubbleSort([...numbers]));\n```";
+    } else if (/calculator/i.test(lower)) {
+      codeResponse = "Here's a simple calculator:\n\n```javascript\nfunction calculate(a, b, operation) {\n  switch(operation) {\n    case '+': return a + b;\n    case '-': return a - b;\n    case '*': return a * b;\n    case '/': return b !== 0 ? a / b : 'Error: Division by zero';\n    default: return 'Invalid operation';\n  }\n}\n\nconsole.log(calculate(10, 5, '+'));  // 15\nconsole.log(calculate(10, 5, '*'));  // 50\n```";
+    } else if (/random|number/i.test(lower)) {
+      codeResponse = "Here's a random number generator:\n\n```javascript\nfunction getRandomInt(min, max) {\n  return Math.floor(Math.random() * (max - min + 1)) + min;\n}\n\nconsole.log('Random between 1-100:', getRandomInt(1, 100));\nconsole.log('Random between 1-10:', getRandomInt(1, 10));\n```";
+    } else {
+      codeResponse = "Here's a sample JavaScript code:\n\n```javascript\n// Hello World example\nfunction greet(name) {\n  return `Hello, ${name}! Welcome to the code runner.`;\n}\n\nconsole.log(greet('World'));\nconsole.log('Current time:', new Date().toLocaleTimeString());\n```";
+    }
+    
+    return codeResponse + "\n\nI'll open the code runner and execute this for you!";
+  }
+  
+  // === Settings Control ===
+  if (/(change|set|switch|make).*theme/i.test(lower)) {
+    if (/dark/i.test(lower)) {
+      return "Switching to dark theme now! Your eyes will thank you. 🌙";
+    } else if (/light/i.test(lower)) {
+      return "Switching to light theme now! Bright and clean. ☀️";
+    }
+    return "I can change the theme! Just tell me 'switch to dark theme' or 'switch to light theme'.";
+  }
+  
+  if (/(change|set).*(color|accent)/i.test(lower)) {
+    const colors = ['red', 'blue', 'green', 'purple', 'orange', 'pink'];
+    const foundColor = colors.find(c => lower.includes(c));
+    if (foundColor) {
+      return `Changing accent color to ${foundColor} now! Looking good! 🎨`;
+    }
+    return "I can change the accent color! Try: 'change color to blue' or 'set accent to purple'. Available colors: red, blue, green, purple, orange, pink.";
+  }
+  
+  // === Questions about the app ===
+  if (/(what is|what's|tell me about) (this app|focus|this)/i.test(lower)) {
+    return "Focus is a productivity app designed to help you stay organized and focused. It includes widgets for time tracking, todo lists, habit tracking, notes, and more - all in a beautiful, customizable interface!";
+  }
+  
+  // === Keyboard shortcuts ===
+  if (/(shortcut|keyboard|hotkey)/i.test(lower)) {
+    return "Keyboard shortcuts:\n• Press 'G' to open me (AI assistant)\n• Press '1' for Clock\n• Press '2' for Focus Timer\n• Press '3' for Stopwatch\n• Press '4' for Calculator\n• Press '?' to see all shortcuts\n• Ctrl+Shift+X to close all windows";
+  }
+  
+  // === Settings & Customization ===
+  if (/(change|customize|settings|theme|color)/i.test(lower)) {
+    if (/theme|dark|light/i.test(lower)) {
+      return "You can change the theme in Settings (gear icon in taskbar). Choose between dark and light modes to match your preference!";
+    }
+    if (/color|accent/i.test(lower)) {
+      return "Open Settings (gear icon) to customize your accent color, blur effects, and more visual options!";
+    }
+    if (/background|wallpaper/i.test(lower)) {
+      return "Click the image icon in the taskbar to browse 20 beautiful backgrounds! From snowy mountains to tropical beaches.";
+    }
+    return "Open Settings (gear icon in taskbar) to customize themes, colors, taskbar position, blur effects, and more!";
+  }
+  
+  // === Add/Create items ===
+  if (/(add|create|new|make) (habit|task|todo|note)/i.test(lower)) {
+    if (/habit/i.test(lower)) {
+      return "I can open the Habits widget for you! Once it's open, type your new habit in the input field and click '+'. Great habits to track: exercise, meditation, reading, or drinking water.";
+    }
+    if (/task|todo/i.test(lower)) {
+      return "Let me open the Todo widget for you! You can add tasks by typing them in and pressing Enter. Break big tasks into smaller, actionable steps!";
+    }
+    if (/note/i.test(lower)) {
+      return "I'll open the Notes widget! Click the '+' button to create a new note. Perfect for quick thoughts, ideas, or reminders.";
+    }
+  }
+  
+  // === Goal Setting ===
+  if (/(goal|achieve|accomplish|target)/i.test(lower)) {
+    return "Setting goals? Here's my advice:\n1. Make them specific and measurable\n2. Break them into daily tasks (use Todo widget)\n3. Track daily progress (use Habits widget)\n4. Use the Focus Timer for deep work\n5. Review weekly - celebrate small wins!";
+  }
+  
+  // === Stress/Overwhelm ===
+  if (/(stress|overwhelm|anxious|too much)/i.test(lower)) {
+    return "Feeling overwhelmed? Try this:\n1. Take a deep breath\n2. Write everything down in the Todo list\n3. Pick just ONE thing to do now\n4. Set a timer for 25 minutes\n5. Focus on that one thing\n\nRemember: you can't do everything at once, but you can do one thing right now.";
+  }
+  
+  // === Break/Rest ===
+  if (/(break|rest|tired|exhausted)/i.test(lower)) {
+    return "Rest is productive too! The Focus Timer includes built-in breaks. After 25 minutes of focused work, take a 5-minute break. Step away from your screen, stretch, or grab some water. Your brain needs rest to perform well!";
+  }
+  
+  // === Comparison questions ===
+  if (/(difference between|vs|versus|compare)/i.test(lower)) {
+    if (/(todo|task).*(habit)/i.test(lower)) {
+      return "Great question! Todos are one-time tasks you complete and check off. Habits are recurring actions you want to do daily (like exercise or meditation). Use both: Todos for projects, Habits for building routines!";
+    }
+    if (/(focus|timer).*(stopwatch)/i.test(lower)) {
+      return "Focus Timer counts DOWN (default 25 min) - perfect for time-blocking work sessions. Stopwatch counts UP - great for tracking how long tasks actually take. Use Focus Timer for structured work, Stopwatch for time tracking!";
+    }
+  }
+  
+  // === Creative & Personal Questions ===
+  if (/(who are you|what are you|your name)/i.test(lower)) {
+    return "I'm your AI assistant integrated into the Focus app! I'm here to help you stay productive, answer questions, and control your widgets. Think of me as your personal productivity companion!";
+  }
+  
+  if (/(how are you|how's it going)/i.test(lower)) {
+    return "I'm doing great, thanks for asking! I'm here and ready to help you be productive. What would you like to work on today?";
+  }
+  
+  // === Feature-specific questions ===
+  if (/(what.*widget|which widget|best widget|available widget)/i.test(lower)) {
+    return "Here are the available widgets:\n• Clock - current time\n• Focus Timer - 25min work sessions\n• Stopwatch - time tracking\n• Todo List - task management\n• Habits - daily habit tracking\n• Notes - quick notes\n• Calculator - math\n• Calendar - date picker\n• Table - data tables\n• Weather - live weather data\n• Code Runner - write & execute code\n\nClick the '+' icon in the taskbar to browse all widgets!";
+  }
+  
+  // === Context-aware learning responses ===
+  if (/(learn|study|education|exam|test)/i.test(lower)) {
+    return "For effective studying:\n1. Use the Pomodoro Technique (Focus Timer) - 25 min study, 5 min break\n2. Break material into chunks (Todo list)\n3. Track study habits daily (Habits widget)\n4. Take notes as you learn (Notes widget)\n5. Review regularly, not just before exams\n\nConsistent daily effort beats cramming!";
+  }
+  
+  if (/(work|job|office|meeting)/i.test(lower)) {
+    return "For productive work sessions:\n1. Start your day by listing tasks (Todo widget)\n2. Prioritize top 3 most important tasks\n3. Use Focus Timer for deep work (no distractions!)\n4. Take proper breaks between sessions\n5. Track your accomplishments in Habits\n\nRemember: working smart > working long!";
+  }
+  
+  // === Default Intelligent Response with variety ===
+  const questionWords = ['what', 'why', 'how', 'when', 'where', 'who'];
+  const hasQuestionWord = questionWords.some(w => lower.includes(w));
+  
+  if (hasQuestionWord) {
+    return "That's a great question! While I can't access external information, I can help you with:\n• App controls and navigation\n• Productivity tips and strategies\n• Widget management\n• Time and calculations\n\nTry asking me something like:\n• 'Open the calculator'\n• 'Give me a productivity tip'\n• 'What time is it?'\n• 'How do I add a habit?'";
+  }
+  
+  const intelligentDefaults = [
+    "I'm here to help! I can control widgets, share productivity tips, tell time, do math, and guide you through the app. What would you like to do?",
+    "Not sure I caught that exactly, but I can help you with:\n• Opening/closing widgets\n• Productivity advice\n• Time & calculations\n• Keyboard shortcuts\n\nWhat interests you?",
+    "I'm your productivity assistant! Try asking me to:\n• 'Open calculator'\n• 'Give me focus advice'\n• 'Show keyboard shortcuts'\n• 'What time is it?'",
+  ];
+  
+  return intelligentDefaults[Math.floor(Math.random() * intelligentDefaults.length)];
+}
+
+// ---------- LOADING SCREEN ----------
+window.addEventListener("load", () => {
+  const loader = document.getElementById("loadingScreen");
+  setTimeout(() => { loader.classList.add("hidden"); }, 600);
+});
+
+// ---------- Window Management ----------
+let zIndexCounter = 100;
+
+function toggle(id) {
+  const w = document.getElementById(id);
+  if (!w) return;
+  if (w.style.display === "block") {
+    w.style.display = "none";
+  } else {
+    w.style.display = "block";
+    // Re-center modals that use translateX(-50%)
+    if (id === "settingsWin" || id === "moreWidgets") {
+      w.style.left = "50%";
+      w.style.transform = "translateX(-50%)";
+    }
+    w.classList.remove("pop");
+    void w.offsetWidth;
+    w.classList.add("pop");
+    bringToFront(w);
+    initWindowDrag(w);
+  }
+}
+
+function closeWindow(id) {
+  const w = document.getElementById(id);
+  if (w) w.style.display = "none";
+}
+
+function minimizeWindow(id) {
+  const w = document.getElementById(id);
+  if (w) w.style.display = "none";
+}
+
+function maximizeWindow(id) {
+  const w = document.getElementById(id);
+  if (!w) return;
+  
+  if (w.dataset.maximized === "true") {
+    // Restore
+    w.style.width = w.dataset.oldWidth;
+    w.style.height = w.dataset.oldHeight;
+    w.style.left = w.dataset.oldLeft;
+    w.style.top = w.dataset.oldTop;
+    w.dataset.maximized = "false";
+  } else {
+    // Maximize
+    w.dataset.oldWidth = w.style.width;
+    w.dataset.oldHeight = w.style.height;
+    w.dataset.oldLeft = w.style.left;
+    w.dataset.oldTop = w.style.top;
+    w.style.width = "calc(100vw - 40px)";
+    w.style.height = "calc(100vh - 40px)";
+    w.style.left = "20px";
+    w.style.top = "20px";
+    w.dataset.maximized = "true";
+  }
+}
+
+function bringToFront(win) {
+  win.style.zIndex = ++zIndexCounter;
+}
+
+// ---------- Clock ----------
+const clockTime = document.getElementById("clockTime");
+const clockSeconds = document.getElementById("clockSeconds");
+const clockDate = document.getElementById("clockDate");
+
+function updateClock() {
+  const d = new Date();
+  clockTime.textContent = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  clockSeconds.textContent = d.getSeconds().toString().padStart(2, "0");
+  clockDate.textContent = d.toLocaleDateString(undefined, {weekday:"long", month:"long", day:"numeric"});
+}
+setInterval(updateClock, 100);
+updateClock();
+
+// ---------- Text Writer ----------
+const textArea = document.getElementById("textArea");
+const fontSelect = document.getElementById("fontSizeSelect");
+const boldBtn = document.getElementById("boldBtn");
+const italicBtn = document.getElementById("italicBtn");
+
+fontSelect.addEventListener("change", () => {
+  textArea.style.fontSize = fontSelect.value + "px";
+});
+
+boldBtn.addEventListener("click", () => {
+  textArea.style.fontWeight = textArea.style.fontWeight === "bold" ? "normal" : "bold";
+  boldBtn.classList.toggle("active");
+});
+
+italicBtn.addEventListener("click", () => {
+  textArea.style.fontStyle = textArea.style.fontStyle === "italic" ? "normal" : "italic";
+  italicBtn.classList.toggle("active");
+});
+
+// ---------- Focus Timer ----------
+let ft = 1500; // 25 minutes in seconds
+let initialFt = 1500;
+let fr = null;
+const focusTimeDisplay = document.getElementById("focusTime");
+const focusAlarm = document.getElementById("focusAlarm");
+
+function updateFocusDisplay() {
+  const minutes = Math.floor(ft / 60).toString().padStart(2, "0");
+  const seconds = (ft % 60).toString().padStart(2, "0");
+  focusTimeDisplay.textContent = `${minutes}:${seconds}`;
+}
+
+function startFocus() {
+  if (fr) return; // Already running
+  fr = setInterval(() => {
+    if (ft > 0) {
+      ft--;
+      updateFocusDisplay();
+    } else {
+      clearInterval(fr);
+      fr = null;
+      focusAlarm.currentTime = 0;
+      focusAlarm.play();
+      setTimeout(() => { focusAlarm.pause(); }, 5000);
+    }
+  }, 1000);
+}
+
+function pauseFocus() {
+  if (fr) {
+    clearInterval(fr);
+    fr = null;
+  }
+}
+
+function resetFocus() {
+  pauseFocus();
+  ft = initialFt;
+  updateFocusDisplay();
+}
+
+function toggleFocusSettings() {
+  const overlay = document.getElementById("focusSettingsOverlay");
+  overlay.style.display = overlay.style.display === "block" ? "none" : "block";
+}
+
+function updateFocusTime() {
+  const newTime = parseInt(document.getElementById("focusTimeInput").value);
+  if (!isNaN(newTime) && newTime > 0) {
+    initialFt = newTime * 60;
+    ft = initialFt;
+    updateFocusDisplay();
+    toggleFocusSettings();
+  }
+}
+
+updateFocusDisplay();
+
+// ---------- Stopwatch ----------
+let sw = 0;
+let si = null;
+let swStartTime = 0;
+let swElapsed = 0;
+
+function formatStopwatchTime(milliseconds) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const deciseconds = Math.floor((milliseconds % 1000) / 100);
+  
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${deciseconds}`;
+}
+
+function swStart() {
+  if (!si) {
+    swStartTime = Date.now() - swElapsed;
+    si = setInterval(() => {
+      swElapsed = Date.now() - swStartTime;
+      document.getElementById('swTime').textContent = formatStopwatchTime(swElapsed);
+    }, 100);
+    
+    // Update button visibility
+    document.getElementById('swStartBtn').style.display = 'none';
+    document.getElementById('swPauseBtn').style.display = 'block';
+  }
+}
+
+function swPause() {
+  if (si) {
+    clearInterval(si);
+    si = null;
+    
+    // Update button visibility
+    document.getElementById('swStartBtn').style.display = 'block';
+    document.getElementById('swPauseBtn').style.display = 'none';
+  }
+}
+
+function swReset() {
+  swPause();
+  swElapsed = 0;
+  swStartTime = 0;
+  document.getElementById('swTime').textContent = '00:00.0';
+  
+  // Reset button visibility
+  document.getElementById('swStartBtn').style.display = 'block';
+  document.getElementById('swPauseBtn').style.display = 'none';
+}
+
+// ---------- Todo ----------
+const todoInput = document.getElementById("todoInput");
+const todoList = document.getElementById("todoList");
+
+todoInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.value.trim()) {
+    const li = document.createElement("li");
+    li.textContent = e.target.value;
+    li.dataset.done = "false";
+    li.onclick = function() {
+      const done = this.dataset.done === "true";
+      this.dataset.done = done ? "false" : "true";
+      this.style.textDecoration = done ? "none" : "line-through";
+      this.style.opacity = done ? "1" : "0.5";
+    };
+    todoList.appendChild(li);
+    e.target.value = "";
+  }
+});
+
+// ---------- Image Viewer ----------
+const imgInput = document.getElementById("imgInput");
+const imgDisplay = document.getElementById("imgDisplay");
+
+imgInput.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = f => imgDisplay.src = f.target.result;
+  reader.readAsDataURL(file);
+});
+
+// ---------- MP4 Video ----------
+const video = document.getElementById("mp4Video");
+const playIcon = document.getElementById("playIcon");
+
+function loadVideo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  video.src = URL.createObjectURL(file);
+  video.load();
+}
+
+function togglePlay() {
+  if (video.paused) {
+    video.play();
+    playIcon.innerHTML = '<path d="M6,4h4v16H6V4z M14,4h4v16h-4V4z"/>';
+  } else {
+    video.pause();
+    playIcon.innerHTML = '<path d="M8,5v14l11-7L8,5z"/>';
+  }
+}
+
+function skipVideo(sec) {
+  video.currentTime += sec;
+}
+
+function setSpeed(speed) {
+  video.playbackRate = parseFloat(speed);
+}
+
+function fullscreenVideo() {
+  if (video.requestFullscreen) video.requestFullscreen();
+  else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+}
+
+// ---------- YouTube Player ----------
+function loadYTVideo() {
+  const url = document.getElementById("ytPlayerInput").value;
+  let videoId = "";
+  
+  // Extract video ID from various YouTube URL formats
+  if (url.includes("youtube.com/watch?v=")) {
+    videoId = url.split("v=")[1].split("&")[0];
+  } else if (url.includes("youtu.be/")) {
+    videoId = url.split("youtu.be/")[1].split("?")[0];
+  } else if (url.includes("youtube.com/embed/")) {
+    videoId = url.split("embed/")[1].split("?")[0];
+  }
+  
+  if (videoId) {
+    document.getElementById("ytPlayerIframe").src = `https://www.youtube.com/embed/${videoId}`;
+  } else {
+    alert("Please enter a valid YouTube URL");
+  }
+}
+
+function fullscreenYT() {
+  const iframe = document.getElementById("ytPlayerIframe");
+  if (iframe.requestFullscreen) iframe.requestFullscreen();
+  else if (iframe.webkitRequestFullscreen) iframe.webkitRequestFullscreen();
+}
+
+
+// ---------- Account System ----------
+let currentUser = null;
+
+// Load account data on page load
+function loadAccount() {
+  const savedUser = localStorage.getItem('focusOS_user');
+  if (savedUser) {
+    currentUser = JSON.parse(savedUser);
+    updateProfileDisplay();
+  }
+}
+
+function updateProfileDisplay() {
+  const profileUsername = document.getElementById('profileUsername');
+  const profileStatus = document.getElementById('profileStatus');
+  const profileIcon = document.getElementById('profileIcon');
+  const accountBtnText = document.getElementById('accountBtnText');
+  const profilePicture = document.getElementById('profilePicture');
+  
+  if (currentUser) {
+    profileUsername.textContent = currentUser.username;
+    profileStatus.textContent = 'Logged in';
+    accountBtnText.textContent = 'Edit Profile';
+    
+    // Show profile picture if exists
+    if (currentUser.profilePicture) {
+      profileIcon.innerHTML = `<img src="${currentUser.profilePicture}" alt="Profile">`;
+    } else {
+      profileIcon.textContent = currentUser.username.charAt(0).toUpperCase();
+    }
+  } else {
+    profileUsername.textContent = 'Guest User';
+    profileStatus.textContent = 'Not logged in';
+    accountBtnText.textContent = 'Login / Sign Up';
+    profileIcon.textContent = '👤';
+  }
+}
+
+function openAccountModal() {
+  const modal = document.getElementById('accountModal');
+  const loginForm = document.getElementById('loginForm');
+  const editForm = document.getElementById('editForm');
+  const modalTitle = document.getElementById('accountModalTitle');
+  
+  if (currentUser) {
+    // Show edit form
+    loginForm.style.display = 'none';
+    editForm.style.display = 'block';
+    modalTitle.textContent = 'Edit Profile';
+    document.getElementById('editUsernameInput').value = currentUser.username;
+    document.getElementById('editPasswordInput').value = '';
+  } else {
+    // Show login form
+    loginForm.style.display = 'block';
+    editForm.style.display = 'none';
+    modalTitle.textContent = 'Login / Sign Up';
+    document.getElementById('usernameInput').value = '';
+    document.getElementById('passwordInput').value = '';
+  }
+  
+  modal.classList.add('active');
+}
+
+function closeAccountModal() {
+  document.getElementById('accountModal').classList.remove('active');
+}
+
+function loginAccount() {
+  const username = document.getElementById('usernameInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  
+  if (!username || !password) {
+    alert('Please enter both username and password');
+    return;
+  }
+  
+  currentUser = {
+    username: username,
+    password: password,
+    profilePicture: null,
+    createdAt: new Date().toISOString()
+  };
+  
+  localStorage.setItem('focusOS_user', JSON.stringify(currentUser));
+  updateProfileDisplay();
+  closeAccountModal();
+  
+  showNotification(`Welcome, ${username}!`);
+}
+
+function updateAccount() {
+  const newUsername = document.getElementById('editUsernameInput').value.trim();
+  const newPassword = document.getElementById('editPasswordInput').value;
+  
+  if (!newUsername) {
+    alert('Username cannot be empty');
+    return;
+  }
+  
+  currentUser.username = newUsername;
+  
+  if (newPassword) {
+    currentUser.password = newPassword;
+  }
+  
+  localStorage.setItem('focusOS_user', JSON.stringify(currentUser));
+  updateProfileDisplay();
+  closeAccountModal();
+  
+  showNotification('Profile updated successfully!');
+}
+
+function logoutAccount() {
+  if (confirm('Are you sure you want to logout?')) {
+    currentUser = null;
+    localStorage.removeItem('focusOS_user');
+    updateProfileDisplay();
+    closeAccountModal();
+    showNotification('Logged out successfully');
+  }
+}
+
+function uploadProfilePicture(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (!currentUser) {
+    alert('Please login first to upload a profile picture');
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentUser.profilePicture = e.target.result;
+    localStorage.setItem('focusOS_user', JSON.stringify(currentUser));
+    updateProfileDisplay();
+    showNotification('Profile picture updated!');
+  };
+  reader.readAsDataURL(file);
+}
+
+function showNotification(message) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = message;
+  document.body.appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 240); }, 2600);
+}
+
+// Load account on page load
+document.addEventListener('DOMContentLoaded', loadAccount);
+
+// ========== AI ASSISTANT WITH SAMBANOVA INTEGRATION ==========
+let aiActive = false;
+
+// Press 'G' to open AI
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'g' || e.key === 'G') {
+    if (!aiActive && !e.target.matches('input, textarea')) {
+      openAI();
+    }
+  }
+  // ESC to close AI
+  if (e.key === 'Escape' && aiActive) {
+    closeAI();
+  }
+});
+
+function openAI() {
+  aiActive = true;
+  document.getElementById('aiAssistant').classList.add('active');
+  document.body.classList.add('ai-active');
+  document.getElementById('aiInput').focus();
+  
+  // Test API connection on first open
+  testAPIConnection();
+}
+
+// Test if API is accessible
+async function testAPIConnection() {
+  console.log('🔍 Testing Sambanova API connection...');
+  
+  try {
+    const testResponse = await fetch(API_ENDPOINTS[0], {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SAMBANOVA_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'Meta-Llama-3.1-8B-Instruct',
+        messages: [
+          { role: 'system', content: 'Test' },
+          { role: 'user', content: 'Hi' }
+        ],
+        max_tokens: 10
+      })
+    });
+    
+    if (testResponse.ok) {
+      console.log('✅ API Connection: SUCCESS');
+      console.log('🎉 Sambanova AI is ready!');
+    } else {
+      console.log('⚠️ API Connection: Failed');
+      console.log('Status:', testResponse.status);
+      const errorText = await testResponse.text();
+      console.log('Error:', errorText);
+      console.log('💡 Will use offline mode as fallback');
+    }
+  } catch (error) {
+    console.log('⚠️ API Connection: Error');
+    console.log('Error:', error.message);
+    console.log('💡 This is likely a CORS issue. Will use offline mode.');
+    console.log('');
+    console.log('📋 To fix CORS issue:');
+    console.log('1. Run from a local server (python -m http.server)');
+    console.log('2. Or use a browser extension to disable CORS temporarily');
+    console.log('3. Or deploy to a web server');
+  }
+}
+
+function closeAI() {
+  aiActive = false;
+  document.getElementById('aiAssistant').classList.remove('active');
+  document.body.classList.remove('ai-active');
+}
+
+// Widget control helper
+function parseAndExecuteWidgetCommands(message, aiResponse) {
+  const lower = message.toLowerCase();
+  const widgetMap = {
+    'clock': 'clockWin',
+    'timer': 'focusWin',
+    'focus': 'focusWin',
+    'stopwatch': 'swWin',
+    'todo': 'todoWin',
+    'calendar': 'calWin',
+    'table': 'tableWin',
+    'spotify': 'spotifyWin',
+    'youtube': 'ytWin',
+    'slides': 'slidesWin',
+    'classroom': 'classroomWin',
+    'image': 'imageWin',
+    'text': 'textWin',
+    'video': 'mp4Win',
+    'player': 'ytPlayerWin',
+    'background': 'bgWin',
+    'settings': 'settingsWin',
+    'widgets': 'moreWidgets',
+    'calculator': 'calcWin',
+    'calc': 'calcWin',
+    'habit': 'habitWin',
+    'note': 'notesWin',
+    'converter': 'unitWin',
+    'weather': 'weatherWin',
+    'code': 'codeWin'
+  };
+  
+  // Check for open/show commands
+  if (/(open|show|launch|display|start)/i.test(lower)) {
+    for (const [keyword, widgetId] of Object.entries(widgetMap)) {
+      if (lower.includes(keyword)) {
+        toggle(widgetId);
+        break;
+      }
+    }
+  }
+  
+  // Check for close commands
+  if (/(close|hide|exit)/i.test(lower)) {
+    if (/all|everything/.test(lower)) {
+      closeAllWindows();
+    } else {
+      for (const [keyword, widgetId] of Object.entries(widgetMap)) {
+        if (lower.includes(keyword)) {
+          closeWindow(widgetId);
+          break;
+        }
+      }
+    }
+  }
+  
+  // === AI DYNAMIC CONTENT GENERATION ===
+  
+  // Weather requests
+  if (/(weather|temperature|forecast).*(in|for)/i.test(lower)) {
+    const cityMatch = lower.match(/(?:in|for)\s+([a-z\s]+?)(?:\?|$|,|\.)/i);
+    if (cityMatch) {
+      const city = cityMatch[1].trim();
+      toggle('weatherWin');
+      setTimeout(() => fetchWeather(city), 300);
+    }
+  }
+  
+  // Table generation
+  if (/(create|make|generate|show|build).*table/i.test(lower)) {
+    // Extract table data from AI response if present
+    const tableData = extractTableFromResponse(aiResponse);
+    if (tableData) {
+      populateTable(tableData);
+      toggle('tableWin');
+    }
+  }
+  
+  // Code generation and execution
+  if (/(write|create|make|generate|show).*(code|program|script)/i.test(lower)) {
+    const codeData = extractCodeFromResponse(aiResponse);
+    if (codeData) {
+      setCode(codeData.code, codeData.language);
+    }
+  }
+  
+  // Settings changes
+  if (/(change|set|make|switch).*theme/i.test(lower)) {
+    if (/dark/i.test(lower)) {
+      document.getElementById('themeSelect').value = 'dark';
+      document.getElementById('themeSelect').dispatchEvent(new Event('change'));
+    } else if (/light/i.test(lower)) {
+      document.getElementById('themeSelect').value = 'light';
+      document.getElementById('themeSelect').dispatchEvent(new Event('change'));
+    }
+  }
+  
+  if (/(change|set).*(color|accent)/i.test(lower)) {
+    const colorMatch = lower.match(/#[0-9a-f]{6}|#[0-9a-f]{3}|red|blue|green|purple|orange|pink/i);
+    if (colorMatch) {
+      const colorMap = {
+        'red': '#ff5555',
+        'blue': '#5555ff',
+        'green': '#55ff55',
+        'purple': '#aa55ff',
+        'orange': '#ff9955',
+        'pink': '#ff55aa'
+      };
+      const color = colorMap[colorMatch[0].toLowerCase()] || colorMatch[0];
+      document.getElementById('accentInput').value = color;
+      document.getElementById('accentInput').dispatchEvent(new Event('input'));
+    }
+  }
+}
+
+// Extract table data from AI response
+function extractTableFromResponse(response) {
+  // Look for table patterns in response
+  const lines = response.split('\n');
+  const tableLines = [];
+  let inTable = false;
+  
+  for (const line of lines) {
+    if (line.includes('|') && line.trim().length > 0) {
+      inTable = true;
+      tableLines.push(line);
+    } else if (inTable && line.trim() === '') {
+      break;
+    }
+  }
+  
+  if (tableLines.length >= 2) {
+    const headers = tableLines[0].split('|').map(h => h.trim()).filter(h => h);
+    const rows = [];
+    
+    for (let i = 2; i < tableLines.length; i++) {
+      const cells = tableLines[i].split('|').map(c => c.trim()).filter(c => c);
+      if (cells.length > 0) rows.push(cells);
+    }
+    
+    return { headers, rows };
+  }
+  
+  return null;
+}
+
+// Populate table widget with data
+function populateTable(data) {
+  const table = document.getElementById('tbl');
+  table.innerHTML = '';
+  
+  // Add headers
+  if (data.headers && data.headers.length > 0) {
+    const headerRow = table.insertRow();
+    data.headers.forEach(header => {
+      const th = document.createElement('td');
+      th.textContent = header;
+      th.style.fontWeight = 'bold';
+      th.style.background = 'rgba(124,92,255,0.2)';
+      headerRow.appendChild(th);
+    });
+  }
+  
+  // Add data rows
+  if (data.rows && data.rows.length > 0) {
+    data.rows.forEach(row => {
+      const tr = table.insertRow();
+      row.forEach(cell => {
+        const td = tr.insertCell();
+        td.textContent = cell;
+      });
+    });
+  }
+}
+
+// Extract code from AI response
+function extractCodeFromResponse(response) {
+  // Look for code blocks with language specification
+  const codeBlockMatch = response.match(/```(\w+)?\n([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    const language = codeBlockMatch[1] || 'javascript';
+    const code = codeBlockMatch[2].trim();
+    return { code, language };
+  }
+  
+  // Look for inline code
+  const inlineCodeMatch = response.match(/`([^`]+)`/);
+  if (inlineCodeMatch) {
+    return { code: inlineCodeMatch[1], language: 'javascript' };
+  }
+  
+  return null;
+}
+
+// Send message to AI (tries API first, falls back to offline if needed)
+async function sendAIMessage() {
+  const input = document.getElementById('aiInput');
+  const message = input.value.trim();
+  
+  if (!message) return;
+  
+  // Add user message to UI
+  const messagesDiv = document.getElementById('aiMessages');
+  const userMsg = document.createElement('div');
+  userMsg.className = 'ai-message user';
+  userMsg.textContent = message;
+  messagesDiv.appendChild(userMsg);
+  
+  // Clear input
+  input.value = '';
+  
+  // Show typing indicator
+  document.getElementById('aiTyping').classList.add('active');
+  
+  // Scroll to bottom
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  
+  // Disable send button
+  const sendBtn = document.querySelector('.ai-send-btn');
+  sendBtn.disabled = true;
+  
+  // Add user message to conversation history
+  aiConversationHistory.push({
+    role: 'user',
+    content: message
+  });
+  
+  // Try API call with all available endpoints
+  let apiSuccess = false;
+  let aiResponse = null;
+  
+  for (let i = 0; i < API_ENDPOINTS.length && !apiSuccess; i++) {
+    try {
+      console.log(`Trying endpoint ${i + 1}/${API_ENDPOINTS.length}: ${API_ENDPOINTS[i]}`);
+      
+      const response = await fetch(API_ENDPOINTS[i], {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SAMBANOVA_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'Meta-Llama-3.1-8B-Instruct',
+          messages: aiConversationHistory,
+          temperature: 0.7,
+          top_p: 0.9,
+          max_tokens: 1024
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ API Success! Response:', data);
+        aiResponse = data.choices[0].message.content;
+        apiSuccess = true;
+        currentEndpointIndex = i; // Remember working endpoint
+        
+        // Show success notification
+        console.log('🎉 Connected to Sambanova AI successfully!');
+      } else {
+        console.log(`❌ Endpoint ${i + 1} failed: ${response.status}`);
+        const errorText = await response.text();
+        console.log('Error details:', errorText);
+      }
+    } catch (error) {
+      console.log(`❌ Endpoint ${i + 1} error:`, error.message);
+    }
+  }
+  
+  // If API failed, use fallback
+  if (!apiSuccess) {
+    console.log('⚠️ All API endpoints failed. Using offline AI mode.');
+    aiResponse = getSmartAIResponse(message);
+    
+    // Show one-time notice about offline mode
+    if (aiConversationHistory.length === 2) { // First real message
+      const notice = document.createElement('div');
+      notice.className = 'ai-message assistant';
+      notice.style.background = 'rgba(255, 165, 0, 0.2)';
+      notice.textContent = '⚠️ Note: Running in offline mode. For full AI capabilities, the API needs to be accessible. I can still help with widgets, time, calculations, and productivity tips!';
+      messagesDiv.appendChild(notice);
+    }
+  }
+  
+  // Hide typing indicator
+  document.getElementById('aiTyping').classList.remove('active');
+  
+  // Execute widget commands
+  parseAndExecuteWidgetCommands(message, aiResponse);
+  
+  // Add AI response to UI
+  const aiMsg = document.createElement('div');
+  aiMsg.className = 'ai-message assistant';
+  aiMsg.textContent = aiResponse;
+  messagesDiv.appendChild(aiMsg);
+  
+  // Add to conversation history
+  aiConversationHistory.push({
+    role: 'assistant',
+    content: aiResponse
+  });
+  
+  // Scroll to bottom
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  
+  // Re-enable send button
+  sendBtn.disabled = false;
+}
+
+// ---------- Backgrounds ----------
+const bgs = [
+  {url:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4", name:"Snowy Mountains"},
+  {url:"https://images.unsplash.com/photo-1522673607200-164d1b6ce486", name:"Cherry Blossoms"},
+  {url:"https://images.unsplash.com/photo-1501594907352-04cda38ebc29", name:"Sunset Lake"},
+  {url:"https://images.unsplash.com/photo-1519681393784-d120267933ba", name:"Mountain Stars"},
+  {url:"https://images.unsplash.com/photo-1511884642898-4c92249e20b6", name:"Tropical Beach"},
+  {url:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e", name:"Forest Path"},
+  {url:"https://images.unsplash.com/photo-1470252649378-9c29740c9fa8", name:"Misty Valley"},
+  {url:"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b", name:"Rocky Peaks"},
+  {url:"https://images.unsplash.com/photo-1482938289607-e9573fc25ebb", name:"Autumn Trees"},
+  {url:"https://images.unsplash.com/photo-1469474968028-56623f02e42e", name:"Northern Lights"},
+  {url:"https://images.unsplash.com/photo-1501785888041-af3ef285b470", name:"Nature"},
+  {url:"https://images.unsplash.com/photo-1497215842964-222b430dc094", name:"City"},
+  {url:"https://images.unsplash.com/photo-1500530855697-b586d89ba3ee", name:"Mountains"},
+  {url:"https://images.unsplash.com/photo-1472214103451-9374bd1c798e", name:"Forest"},
+  {url:"https://images.unsplash.com/photo-1507525428034-b723cf961d3e", name:"Ocean"},
+  {url:"https://images.unsplash.com/photo-1519125323398-675f0ddb6308", name:"Abstract"},
+  {url:"https://images.unsplash.com/photo-1505678261036-a3fcc5e884ee", name:"Space"},
+  {url:"https://images.unsplash.com/photo-1465101162946-4377e57745c3", name:"Beach"},
+  {url:"https://images.unsplash.com/photo-1470770903676-69b98201ea1c", name:"Road"},
+  {url:"https://images.unsplash.com/photo-1518837695005-2083093ee35b", name:"Waterfall"},
+];
+
+function initBackgrounds() {
+  const bgContainer = document.getElementById("bgContainer");
+  
+  if (bgContainer) {
+    bgContainer.innerHTML = '';
+    
+    bgs.forEach((bg, index) => {
+      const div = document.createElement("div");
+      div.className = "bgPreview";
+      div.style.backgroundImage = `url(${bg.url})`;
+      div.title = bg.name;
+      div.onclick = function() {
+        document.body.style.backgroundImage = `url(${bg.url})`;
+        document.body.style.backgroundSize = 'cover';
+        document.body.style.backgroundPosition = 'center';
+        document.body.style.backgroundRepeat = 'no-repeat';
+      };
+      bgContainer.appendChild(div);
+    });
+    
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initBackgrounds);
+
+// ---------- Settings ----------
+const accentInput = document.getElementById("accentInput");
+const fontSizeInput = document.getElementById("fontSizeInput");
+const themeSelect = document.getElementById("themeSelect");
+const autoHideCheck = document.getElementById("autoHideCheck");
+const iconSizeInput = document.getElementById("iconSizeInput");
+const taskbarPos = document.getElementById("taskbarPos");
+const showClock = document.getElementById("showClock");
+const showFocus = document.getElementById("showFocus");
+const showStopwatch = document.getElementById("showStopwatch");
+const hideHeaders = document.getElementById("hideHeaders");
+const blurRange = document.getElementById("blurRange");
+const bgOpacityRange = document.getElementById("bgOpacityRange");
+const taskbar = document.getElementById("taskbar");
+
+// Hide headers setting
+if (hideHeaders) {
+  hideHeaders.addEventListener("change", e => {
+    if (e.target.checked) {
+      document.body.classList.add("hide-headers");
+    } else {
+      document.body.classList.remove("hide-headers");
+    }
+  });
+}
+
+// Accent color
+accentInput.addEventListener("input", e => {
+  document.documentElement.style.setProperty("--accent", e.target.value);
+});
+
+// Font size
+fontSizeInput.addEventListener("input", e => {
+  document.documentElement.style.fontSize = e.target.value + "px";
+});
+
+// Theme
+themeSelect.addEventListener("change", e => {
+  const val = e.target.value;
+  if (val === "dark") {
+    document.body.style.backgroundColor = "#14141e";
+    document.body.style.color = "white";
+    document.documentElement.style.setProperty("--glass-bg", `rgba(20,20,30,${bgOpacityRange.value})`);
+    document.querySelectorAll("input, select, textarea").forEach(el => {
+      el.style.background = "rgba(255,255,255,.08)";
+      el.style.color = "#fff";
+    });
+  } else {
+    document.body.style.backgroundColor = "#f0f0f0";
+    document.body.style.color = "#000";
+    document.documentElement.style.setProperty("--glass-bg", `rgba(255,255,255,${bgOpacityRange.value})`);
+    document.querySelectorAll("input, select, textarea").forEach(el => {
+      el.style.background = "rgba(0,0,0,.05)";
+      el.style.color = "#000";
+    });
+  }
+});
+
+// Icon size
+iconSizeInput.addEventListener("input", e => {
+  const size = e.target.value + "px";
+  document.querySelectorAll(".task-btn").forEach(btn => {
+    btn.style.width = size;
+    btn.style.height = size;
+  });
+});
+
+// Taskbar position
+taskbarPos.addEventListener("change", e => {
+  const pos = e.target.value;
+  taskbar.style.top = taskbar.style.bottom = taskbar.style.left = taskbar.style.right = "auto";
+  taskbar.style.flexDirection = "row";
+  
+  if (pos === "bottom") {
+    taskbar.style.bottom = "20px";
+    taskbar.style.left = "50%";
+    taskbar.style.transform = "translateX(-50%)";
+    taskbar.style.flexDirection = "row";
+  } else if (pos === "top") {
+    taskbar.style.top = "20px";
+    taskbar.style.left = "50%";
+    taskbar.style.transform = "translateX(-50%)";
+    taskbar.style.flexDirection = "row";
+  } else if (pos === "left") {
+    taskbar.style.top = "50%";
+    taskbar.style.left = "20px";
+    taskbar.style.transform = "translateY(-50%)";
+    taskbar.style.flexDirection = "column";
+  } else if (pos === "right") {
+    taskbar.style.top = "50%";
+    taskbar.style.right = "20px";
+    taskbar.style.transform = "translateY(-50%)";
+    taskbar.style.flexDirection = "column";
+  }
+});
+
+// Auto-hide taskbar
+let autoHideEnabled = false;
+
+autoHideCheck.addEventListener("change", e => {
+  autoHideEnabled = e.target.checked;
+  if (!autoHideEnabled) {
+    const pos = taskbarPos.value;
+    if (pos === "bottom") taskbar.style.bottom = "20px";
+    if (pos === "top") taskbar.style.top = "20px";
+    if (pos === "left") taskbar.style.left = "20px";
+    if (pos === "right") taskbar.style.right = "20px";
+  }
+});
+
+document.body.addEventListener("mousemove", e => {
+  if (!autoHideEnabled) return;
+  
+  const pos = taskbarPos.value;
+  const margin = 20;
+  const hiddenOffset = -70;
+  
+  if (pos === "bottom") {
+    taskbar.style.bottom = e.clientY > window.innerHeight - 80 ? margin + "px" : hiddenOffset + "px";
+  } else if (pos === "top") {
+    taskbar.style.top = e.clientY < 80 ? margin + "px" : hiddenOffset + "px";
+  } else if (pos === "left") {
+    taskbar.style.left = e.clientX < 80 ? margin + "px" : hiddenOffset + "px";
+  } else if (pos === "right") {
+    taskbar.style.right = e.clientX > window.innerWidth - 80 ? margin + "px" : hiddenOffset + "px";
+  }
+});
+
+// Show/hide windows
+showClock.addEventListener("change", e => {
+  document.getElementById("clockWin").style.display = e.target.checked ? "block" : "none";
+});
+
+showFocus.addEventListener("change", e => {
+  document.getElementById("focusWin").style.display = e.target.checked ? "block" : "none";
+});
+
+showStopwatch.addEventListener("change", e => {
+  document.getElementById("swWin").style.display = e.target.checked ? "block" : "none";
+});
+
+// Initialize window visibility based on checkbox state on load
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    const clockWin = document.getElementById("clockWin");
+    const focusWin = document.getElementById("focusWin");
+    const swWin = document.getElementById("swWin");
+    if (clockWin && showClock && showClock.checked) clockWin.style.display = "block";
+    if (focusWin && showFocus && showFocus.checked) focusWin.style.display = "block";
+    if (swWin && showStopwatch && showStopwatch.checked) swWin.style.display = "block";
+  }, 200);
+});
+
+// Blur
+blurRange.addEventListener("input", e => {
+  document.documentElement.style.setProperty("--blur", `blur(${e.target.value}px)`);
+  document.getElementById("blurValue").textContent = e.target.value + "px";
+});
+
+// Background opacity
+bgOpacityRange.addEventListener("input", e => {
+  const theme = themeSelect.value;
+  if (theme === "dark") {
+    document.documentElement.style.setProperty("--glass-bg", `rgba(20,20,30,${e.target.value})`);
+  } else {
+    document.documentElement.style.setProperty("--glass-bg", `rgba(255,255,255,${e.target.value})`);
+  }
+  document.getElementById("opacityValue").textContent = e.target.value;
+});
+
+// ---------- Drag & Drop for Widgets ----------
+const widgetCards = document.querySelectorAll(".widget-card");
+
+widgetCards.forEach(card => {
+  card.addEventListener("dragstart", e => {
+    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData("text/plain", card.dataset.widget);
+    card.classList.add("dragging");
+  });
+  
+  card.addEventListener("dragend", e => {
+    card.classList.remove("dragging");
+  });
+});
+
+document.body.addEventListener("dragover", e => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "copy";
+});
+
+document.body.addEventListener("drop", e => {
+  e.preventDefault();
+  const widgetId = e.dataTransfer.getData("text/plain");
+  const widget = document.getElementById(widgetId);
+  
+  if (widget && widget.style.display !== "block") {
+    widget.style.left = (e.clientX - 150) + "px";
+    widget.style.top = (e.clientY - 100) + "px";
+    widget.style.display = "block";
+    widget.classList.remove("pop");
+    void widget.offsetWidth;
+    widget.classList.add("pop");
+    bringToFront(widget);
+  }
+});
+
+// ---------- Drag & Resize Windows ----------
+function initWindowDrag(win) {
+  if (win.dataset.dragInit === "true") return;
+  win.dataset.dragInit = "true";
+
+  win.addEventListener("mousedown", () => { bringToFront(win); });
+
+  win.addEventListener("mousedown", e => {
+    const target = e.target;
+    if (
+      target.tagName === 'BUTTON' || target.tagName === 'INPUT' ||
+      target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' ||
+      target.tagName === 'VIDEO' || target.tagName === 'IFRAME' ||
+      target.closest('button') || target.closest('input') ||
+      target.closest('select') || target.closest('textarea') ||
+      target.closest('.window-btn') || target.closest('.resize') ||
+      target.closest('ul') || target.closest('table')
+    ) return;
+
+    let offsetX = e.clientX - win.offsetLeft;
+    let offsetY = e.clientY - win.offsetTop;
+    const move = ev => {
+      win.style.left = ev.clientX - offsetX + "px";
+      win.style.top = ev.clientY - offsetY + "px";
+    };
+    const stop = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", stop);
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", stop);
+  });
+
+  ["n","s","e","w","ne","nw","se","sw"].forEach(d => {
+    const r = document.createElement("div");
+    r.className = "resize " + d;
+    win.appendChild(r);
+    r.addEventListener("mousedown", e => {
+      e.stopPropagation();
+      let startX = e.clientX, startY = e.clientY;
+      let startW = win.offsetWidth, startH = win.offsetHeight;
+      let startL = win.offsetLeft, startT = win.offsetTop;
+      const resize = ev => {
+        if (d.includes("e")) win.style.width = startW + (ev.clientX - startX) + "px";
+        if (d.includes("s")) win.style.height = startH + (ev.clientY - startY) + "px";
+        if (d.includes("w")) {
+          const nw = startW - (ev.clientX - startX);
+          if (nw > 200) { win.style.width = nw + "px"; win.style.left = startL + (ev.clientX - startX) + "px"; }
+        }
+        if (d.includes("n")) {
+          const nh = startH - (ev.clientY - startY);
+          if (nh > 150) { win.style.height = nh + "px"; win.style.top = startT + (ev.clientY - startY) + "px"; }
+        }
+      };
+      const stop = () => { document.removeEventListener("mousemove", resize); document.removeEventListener("mouseup", stop); };
+      document.addEventListener("mousemove", resize);
+      document.addEventListener("mouseup", stop);
+    });
+  });
+}
+
+// Init drag on all existing windows
+document.querySelectorAll(".window").forEach(w => initWindowDrag(w));
+
+// Make sure weather city input works on Enter key
+document.addEventListener('DOMContentLoaded', function() {
+  const weatherInput = document.getElementById('weatherCity');
+  if (weatherInput) {
+    weatherInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        fetchWeather();
+      }
+    });
+  }
+  
+  const codeInput = document.getElementById('codeInput');
+  if (codeInput) {
+    codeInput.addEventListener('keydown', function(e) {
+      // Allow tab in code editor
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+        this.selectionStart = this.selectionEnd = start + 2;
+      }
+    });
+  }
+});
+
+
+// ---------- CLOSE ALL ----------
+function closeAllWindows() {
+  document.querySelectorAll('.window').forEach(w => { w.style.display = 'none'; });
+}
+
+// ---------- KEYBOARD SHORTCUTS ----------
+document.addEventListener('keydown', (e) => {
+  if (e.key === '?' && !e.target.matches('input,textarea')) {
+    e.preventDefault();
+    document.getElementById('shortcutsOverlay').classList.toggle('active');
+    return;
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('shortcutsOverlay').classList.remove('active');
+  }
+  if (!e.target.matches('input,textarea')) {
+    if (e.key === '1') { e.preventDefault(); toggle('clockWin'); }
+    if (e.key === '2') { e.preventDefault(); toggle('focusWin'); }
+    if (e.key === '3') { e.preventDefault(); toggle('swWin'); }
+    if (e.key === '4') { e.preventDefault(); toggle('calcWin'); }
+    if (e.key === '5') { e.preventDefault(); toggle('weatherWin'); }
+    if (e.key === '6') { e.preventDefault(); toggle('codeWin'); }
+  }
+  if (e.ctrlKey && e.shiftKey && e.key === 'X') { e.preventDefault(); closeAllWindows(); }
+});
+
+// ---------- FOCUS PROGRESS RING ----------
+const RING_C = 2 * Math.PI * 48;
+document.getElementById('focusRingProg').style.strokeDasharray = RING_C;
+document.getElementById('focusRingProg').style.strokeDashoffset = 0;
+
+function updateRing() {
+  const ratio = ft / initialFt;
+  document.getElementById('focusRingProg').style.strokeDashoffset = RING_C * (1 - ratio);
+}
+
+const _origFocusDisp = updateFocusDisplay;
+updateFocusDisplay = function() { _origFocusDisp(); updateRing(); };
+updateRing();
+
+// ---------- CALCULATOR ----------
+let calcExpr = '', calcPrev = false;
+
+function calcPress(v) {
+  if (calcPrev && !isNaN(v)) { calcExpr = ''; calcPrev = false; }
+  calcExpr += v;
+  calcPrev = false;
+  document.getElementById('calcExpr').textContent = calcExpr;
+  try {
+    const r = Function('"use strict";return(' + calcExpr + ')')();
+    document.getElementById('calcResult').textContent = parseFloat(Number(r).toFixed(10));
+  } catch(e) { document.getElementById('calcResult').textContent = calcExpr; }
+}
+
+function calcClear() {
+  calcExpr = ''; calcPrev = false;
+  document.getElementById('calcExpr').textContent = '';
+  document.getElementById('calcResult').textContent = '0';
+}
+
+function calcEquals() {
+  try {
+    const r = parseFloat(Function('"use strict";return(' + calcExpr + ')')().toFixed(10));
+    document.getElementById('calcExpr').textContent = calcExpr + ' =';
+    document.getElementById('calcResult').textContent = r;
+    calcExpr = String(r); calcPrev = true;
+  } catch(e) { document.getElementById('calcResult').textContent = 'Error'; calcExpr = ''; }
+}
+
+function calcSign() {
+  try {
+    const r = Function('"use strict";return(' + calcExpr + ')')();
+    calcExpr = String(-r);
+    document.getElementById('calcResult').textContent = calcExpr;
+    document.getElementById('calcExpr').textContent = calcExpr;
+  } catch(e) {}
+}
+
+function calcPercent() {
+  try {
+    const r = Function('"use strict";return(' + calcExpr + ')')();
+    calcExpr = String(r / 100);
+    document.getElementById('calcResult').textContent = calcExpr;
+    document.getElementById('calcExpr').textContent = calcExpr;
+  } catch(e) {}
+}
+
+function calcDot() {
+  const parts = calcExpr.split(/([+\-*/])/);
+  if (!parts[parts.length - 1].includes('.')) calcPress('.');
+}
+
+// ---------- UNIT CONVERTER ----------
+const unitData = {
+  length: { units:['Meter','Kilometer','Mile','Foot','Inch','Centimeter','Yard'], base:{Meter:1,Kilometer:1000,Mile:1609.34,Foot:0.3048,Inch:0.0254,Centimeter:0.01,Yard:0.9144} },
+  weight: { units:['Kilogram','Gram','Pound','Ounce','Milligram','Metric Ton'], base:{Kilogram:1,Gram:0.001,Pound:0.453592,Ounce:0.0283495,Milligram:0.000001,'Metric Ton':1000} },
+  temp:   { units:['Celsius','Fahrenheit','Kelvin'], base:null },
+  speed:  { units:['m/s','km/h','mph','knot','ft/s'], base:{'m/s':1,'km/h':0.277778,'mph':0.44704,'knot':0.514444,'ft/s':0.3048} }
+};
+
+function unitCatChange() {
+  const cat = document.getElementById('unitCat').value;
+  const d = unitData[cat];
+  const sf = document.getElementById('unitFrom'), st = document.getElementById('unitTo');
+  sf.innerHTML = d.units.map((u,i) => '<option value="'+u+'"'+(i===0?' selected':'')+'>'+u+'</option>').join('');
+  st.innerHTML = d.units.map((u,i) => '<option value="'+u+'"'+(i===1?' selected':'')+'>'+u+'</option>').join('');
+  document.getElementById('unitValFrom').value = '';
+  document.getElementById('unitValTo').value = '';
+}
+unitCatChange();
+
+function unitConvert() {
+  const cat = document.getElementById('unitCat').value;
+  const from = document.getElementById('unitFrom').value;
+  const to = document.getElementById('unitTo').value;
+  const val = parseFloat(document.getElementById('unitValFrom').value);
+  if (isNaN(val)) { document.getElementById('unitValTo').value = ''; return; }
+  let result;
+  if (cat === 'temp') {
+    let c = from === 'Celsius' ? val : from === 'Fahrenheit' ? (val-32)*5/9 : val-273.15;
+    result = to === 'Celsius' ? c : to === 'Fahrenheit' ? c*9/5+32 : c+273.15;
+  } else {
+    const b = unitData[cat].base;
+    result = val * b[from] / b[to];
+  }
+  document.getElementById('unitValTo').value = parseFloat(result.toFixed(6));
+}
+
+function unitSwap() {
+  const sf = document.getElementById('unitFrom'), st = document.getElementById('unitTo');
+  const tmp = sf.value; sf.value = st.value; st.value = tmp;
+  const vf = document.getElementById('unitValFrom').value;
+  const vt = document.getElementById('unitValTo').value;
+  document.getElementById('unitValFrom').value = vt;
+  document.getElementById('unitValTo').value = vf;
+  unitConvert();
+}
+
+// ---------- HABIT TRACKER ----------
+let habits = JSON.parse(localStorage.getItem('focusOS_habits') || '[]');
+const habitToday = new Date().toDateString();
+
+function renderHabits() {
+  const list = document.getElementById('habitList');
+  list.innerHTML = '';
+  habits.forEach((h, i) => {
+    const done = h.doneOn === habitToday;
+    const row = document.createElement('div');
+    row.className = 'habit-row';
+    row.innerHTML =
+      '<div class="habit-check '+(done?'done':'')+ '" onclick="toggleHabit('+i+')"></div>' +
+      '<div class="habit-label '+(done?'done':'')+'">'+h.name+'</div>' +
+      '<button class="habit-del" onclick="deleteHabit('+i+')">×</button>';
+    list.appendChild(row);
+  });
+}
+
+function addHabit() {
+  const inp = document.getElementById('habitInput');
+  const name = inp.value.trim();
+  if (!name) return;
+  habits.push({ name, doneOn: null });
+  inp.value = '';
+  localStorage.setItem('focusOS_habits', JSON.stringify(habits));
+  renderHabits();
+}
+
+function toggleHabit(i) {
+  habits[i].doneOn = habits[i].doneOn === habitToday ? null : habitToday;
+  localStorage.setItem('focusOS_habits', JSON.stringify(habits));
+  renderHabits();
+}
+
+function deleteHabit(i) {
+  habits.splice(i, 1);
+  localStorage.setItem('focusOS_habits', JSON.stringify(habits));
+  renderHabits();
+}
+renderHabits();
+
+// ---------- QUICK NOTES ----------
+let notes = JSON.parse(localStorage.getItem('focusOS_notes') || '[]');
+
+function renderNotes() {
+  const list = document.getElementById('noteList');
+  list.innerHTML = '';
+  notes.forEach((n, i) => {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    card.innerHTML =
+      '<textarea oninput="updateNote('+i+',this.value)" placeholder="Note…">'+n+'</textarea>' +
+      '<button class="note-del" onclick="deleteNote('+i+')">×</button>';
+    list.appendChild(card);
+  });
+}
+
+function addNote() {
+  notes.push('');
+  localStorage.setItem('focusOS_notes', JSON.stringify(notes));
+  renderNotes();
+  const tas = document.querySelectorAll('#noteList textarea');
+  if (tas.length) tas[tas.length-1].focus();
+}
+
+function updateNote(i, val) {
+  notes[i] = val;
+  localStorage.setItem('focusOS_notes', JSON.stringify(notes));
+}
+
+function deleteNote(i) {
+  notes.splice(i, 1);
+  localStorage.setItem('focusOS_notes', JSON.stringify(notes));
+  renderNotes();
+}
+renderNotes();
+
+// ---------- WEATHER WIDGET ----------
+async function fetchWeather(city) {
+  const cityInput = document.getElementById('weatherCity');
+  const display = document.getElementById('weatherDisplay');
+  
+  if (!city) {
+    city = cityInput.value.trim();
+  } else {
+    cityInput.value = city;
+  }
+  
+  if (!city) {
+    display.innerHTML = '<p style="opacity:0.6;margin-top:40px;">Please enter a city name</p>';
+    return;
+  }
+  
+  display.innerHTML = '<p style="opacity:0.6;margin-top:40px;">Loading weather data...</p>';
+  
+  try {
+    // Using Open-Meteo free API (no key required)
+    // First get coordinates from city name
+    const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+    const geoData = await geoResponse.json();
+    
+    if (!geoData.results || geoData.results.length === 0) {
+      display.innerHTML = `<p style="color:#ff5f57;">City "${city}" not found. Try another city.</p>`;
+      return;
+    }
+    
+    const location = geoData.results[0];
+    const { latitude, longitude, name, country } = location;
+    
+    // Get weather data
+    const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&timezone=auto`);
+    const weatherData = await weatherResponse.json();
+    
+    const current = weatherData.current;
+    const temp = Math.round(current.temperature_2m);
+    const feelsLike = Math.round(current.apparent_temperature);
+    const humidity = current.relative_humidity_2m;
+    const windSpeed = Math.round(current.wind_speed_10m);
+    
+    // Weather condition based on WMO code
+    const weatherConditions = {
+      0: '☀️ Clear',
+      1: '🌤️ Mainly Clear',
+      2: '⛅ Partly Cloudy',
+      3: '☁️ Overcast',
+      45: '🌫️ Foggy',
+      48: '🌫️ Foggy',
+      51: '🌦️ Light Drizzle',
+      61: '🌧️ Light Rain',
+      63: '🌧️ Rain',
+      65: '🌧️ Heavy Rain',
+      71: '🌨️ Light Snow',
+      73: '🌨️ Snow',
+      75: '🌨️ Heavy Snow',
+      95: '⛈️ Thunderstorm'
+    };
+    
+    const condition = weatherConditions[current.weather_code] || '🌍 Weather';
+    
+    display.innerHTML = `
+      <div style="margin-top:20px;">
+        <h2 style="margin:0;font-size:24px;">${name}, ${country}</h2>
+        <div style="font-size:48px;margin:15px 0;">${condition}</div>
+        <div style="font-size:52px;font-weight:600;margin:10px 0;">${temp}°C</div>
+        <div style="opacity:0.8;font-size:14px;margin-bottom:20px;">Feels like ${feelsLike}°C</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left;max-width:200px;margin:0 auto;">
+          <div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.6;">HUMIDITY</div>
+            <div style="font-size:16px;font-weight:600;">${humidity}%</div>
+          </div>
+          <div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <div style="font-size:11px;opacity:0.6;">WIND</div>
+            <div style="font-size:16px;font-weight:600;">${windSpeed} km/h</div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Weather fetch error:', error);
+    display.innerHTML = '<p style="color:#ff5f57;">Failed to fetch weather data. Please try again.</p>';
+  }
+}
+
+// ---------- CODE RUNNER ----------
+function runCode() {
+  const codeInput = document.getElementById('codeInput').value;
+  const output = document.getElementById('codeOutput');
+  const lang = document.getElementById('codeLang').value;
+  
+  output.innerHTML = '';
+  
+  if (!codeInput.trim()) {
+    output.textContent = 'Please write some code first!';
+    return;
+  }
+  
+  try {
+    if (lang === 'javascript') {
+      // Capture console.log output
+      const logs = [];
+      const originalLog = console.log;
+      console.log = function(...args) {
+        logs.push(args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' '));
+        originalLog.apply(console, args);
+      };
+      
+      try {
+        const result = eval(codeInput);
+        console.log = originalLog;
+        
+        if (logs.length > 0) {
+          output.textContent = logs.join('\n');
+        } else if (result !== undefined) {
+          output.textContent = String(result);
+        } else {
+          output.textContent = '✓ Code executed successfully (no output)';
+        }
+      } catch (error) {
+        console.log = originalLog;
+        throw error;
+      }
+    } else if (lang === 'html') {
+      output.innerHTML = `<iframe srcdoc="${codeInput.replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:none;background:white;border-radius:8px;"></iframe>`;
+    } else if (lang === 'css') {
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>${codeInput}</style>
+          </head>
+          <body>
+            <div class="preview-box">CSS Preview</div>
+            <p>This is a paragraph with custom styles.</p>
+            <button>Button</button>
+          </body>
+        </html>
+      `;
+      output.innerHTML = `<iframe srcdoc="${html.replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:none;background:white;border-radius:8px;"></iframe>`;
+    }
+  } catch (error) {
+    output.innerHTML = `<span style="color:#ff5f57;">Error: ${error.message}</span>`;
+  }
+}
+
+function clearCode() {
+  document.getElementById('codeInput').value = '';
+  document.getElementById('codeOutput').innerHTML = '';
+}
+
+// Set code in code runner (used by AI)
+function setCode(code, language = 'javascript') {
+  document.getElementById('codeInput').value = code;
+  document.getElementById('codeLang').value = language;
+  toggle('codeWin');
+  setTimeout(() => runCode(), 300);
+}
+</script>
+</body>
+</html>
